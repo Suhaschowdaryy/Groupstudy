@@ -1,0 +1,97 @@
+import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Link, useLocation } from 'wouter';
+import { Moon, Sun, Bell, Brain } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
+export function Navigation() {
+  const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const [location] = useLocation();
+
+  const navItems = [
+    { href: '/', label: 'Dashboard', testId: 'nav-dashboard' },
+    { href: '/my-pods', label: 'My Pods', testId: 'nav-my-pods' },
+    { href: '/discover', label: 'Discover', testId: 'nav-discover' },
+    { href: '/profile', label: 'Progress', testId: 'nav-progress' },
+  ];
+
+  return (
+    <nav className="sticky top-0 z-40 glassmorphism border-b border-border bg-background/80 dark:bg-background/80 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center space-x-4">
+            <Link href="/" data-testid="logo-link">
+              <div className="flex items-center space-x-2 cursor-pointer">
+                <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
+                  <Brain className="text-white text-xl" />
+                </div>
+                <span className="text-2xl font-display font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  StudyPod
+                </span>
+              </div>
+            </Link>
+          </div>
+          
+          <div className="hidden md:flex items-center space-x-6">
+            {navItems.map((item) => (
+              <Link key={item.href} href={item.href}>
+                <a
+                  data-testid={item.testId}
+                  className={`text-muted-foreground hover:text-primary transition-colors ${
+                    location === item.href ? 'text-primary font-medium' : ''
+                  }`}
+                >
+                  {item.label}
+                </a>
+              </Link>
+            ))}
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              data-testid="theme-toggle"
+              className="relative"
+            >
+              {theme === 'dark' ? (
+                <Sun className="text-muted-foreground" />
+              ) : (
+                <Moon className="text-muted-foreground" />
+              )}
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              data-testid="notifications-button"
+              className="relative"
+            >
+              <Bell className="text-muted-foreground" />
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full animate-pulse"></span>
+            </Button>
+            
+            {user && (
+              <Link href="/profile">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-secondary p-0.5 cursor-pointer" data-testid="profile-avatar">
+                  <Avatar className="w-full h-full">
+                    <AvatarImage 
+                      src={user.profileImageUrl || ''} 
+                      alt={`${user.firstName || 'User'} profile`} 
+                    />
+                    <AvatarFallback className="bg-background text-foreground">
+                      {user.firstName?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+}
