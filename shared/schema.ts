@@ -13,8 +13,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Session storage table.
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+// Session storage table for authentication
 export const sessions = pgTable(
   "sessions",
   {
@@ -226,14 +225,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
 });
 
 // Authentication schemas
-export const registerSchema = createInsertSchema(users).pick({
-  email: true,
-  password: true,
-  firstName: true,
-  lastName: true,
-}).extend({
+export const registerSchema = z.object({
+  email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
