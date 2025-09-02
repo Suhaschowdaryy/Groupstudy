@@ -67,11 +67,11 @@ export default function Discover() {
 
   if (!user) return null;
 
-  const filteredPods = allPods?.filter((pod: any) =>
+  const filteredPods = (allPods || []).filter((pod: any) =>
     pod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     pod.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (pod.description && pod.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  ) || [];
+  );
 
   const subjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science', 'Psychology', 'History', 'Literature', 'Economics'];
   const paces = ['beginner', 'intermediate', 'advanced'];

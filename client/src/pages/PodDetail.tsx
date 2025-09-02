@@ -250,7 +250,7 @@ export default function PodDetail() {
       title: `${pod?.name} Study Session`,
       description: 'Video call for collaborative studying',
       meetingUrl: jitsiUrl,
-      scheduledAt: new Date().toISOString(),
+      scheduledAt: new Date(),
     };
     
     createVideoCallMutation.mutate(callData);
