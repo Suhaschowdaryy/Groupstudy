@@ -26,10 +26,12 @@ export const sessions = pgTable(
 );
 
 // User storage table.
-// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
+  email: varchar("email").unique().notNull(),
+  password: varchar("password"), // nullable for Google OAuth users
+  googleId: varchar("google_id").unique(), // nullable for email/password users
+  authProvider: varchar("auth_provider").notNull().default("email"), // email, google
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
@@ -223,6 +225,35 @@ export const insertUserSchema = createInsertSchema(users).omit({
   updatedAt: true,
 });
 
+// Authentication schemas
+export const registerSchema = createInsertSchema(users).pick({
+  email: true,
+  password: true,
+  firstName: true,
+  lastName: true,
+}).extend({
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+export const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export const googleUserSchema = createInsertSchema(users).pick({
+  email: true,
+  googleId: true,
+  firstName: true,
+  lastName: true,
+  profileImageUrl: true,
+}).extend({
+  authProvider: z.literal("google"),
+});
+
 export const insertStudyPodSchema = createInsertSchema(studyPods).omit({
   id: true,
   createdAt: true,
@@ -270,6 +301,9 @@ export const insertAiInteractionSchema = createInsertSchema(aiInteractions).omit
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+export type RegisterUser = z.infer<typeof registerSchema>;
+export type LoginUser = z.infer<typeof loginSchema>;
+export type GoogleUser = z.infer<typeof googleUserSchema>;
 export type InsertStudyPod = z.infer<typeof insertStudyPodSchema>;
 export type StudyPod = typeof studyPods.$inferSelect;
 export type InsertPodMembership = z.infer<typeof insertPodMembershipSchema>;

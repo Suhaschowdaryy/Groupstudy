@@ -1,8 +1,7 @@
-import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
+const genai = new GoogleGenAI({ 
+  apiKey: process.env.GEMINI_API_KEY || "" 
 });
 
 export interface StudyRecommendation {
@@ -36,25 +35,27 @@ export async function generateStudyPlan(
     Available time: ${timeAvailable} hours per week
     
     Provide a structured study plan with topics, difficulty levels, estimated time, resources, and practical tips.
-    Format the response as JSON with an array of study recommendations.`;
+    
+    Respond with JSON format containing an array of study recommendations with fields: 
+    - topic (string)
+    - difficulty (beginner/intermediate/advanced) 
+    - estimatedTime (number in minutes)
+    - resources (array of strings)
+    - tips (array of strings)
+    
+    Format: {"recommendations": [{"topic": "...", "difficulty": "...", "estimatedTime": 60, "resources": ["..."], "tips": ["..."]}]}`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert educational AI that creates personalized study plans. Respond with JSON format containing an array of study recommendations with fields: topic, difficulty, estimatedTime, resources, tips."
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      response_format: { type: "json_object" },
+    const response = await genai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json"
+      }
     });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
-    return result.recommendations || [];
+    const text = response.text;
+    const parsed = JSON.parse(text || "{}");
+    return parsed.recommendations || [];
   } catch (error) {
     console.error("Error generating study plan:", error);
     throw new Error("Failed to generate study plan");
@@ -91,32 +92,33 @@ export async function calculatePodMatch(
     - Goal: ${podProfile.goal}
     
     Calculate detailed compatibility scores and provide an overall match score (0-100).
-    Include specific reasons for the score and breakdown by category.`;
+    Include specific reasons for the score and breakdown by category.
+    
+    Respond with JSON format containing:
+    - score (number 0-100)
+    - reasons (array of strings)
+    - compatibility (object with scheduleMatch, paceMatch, subjectMatch, goalAlignment scores 0-100)
+    
+    Format: {"score": 85, "reasons": ["..."], "compatibility": {"scheduleMatch": 80, "paceMatch": 90, "subjectMatch": 85, "goalAlignment": 88}}`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      messages: [
-        {
-          role: "system",
-          content: "You are an AI matching algorithm that calculates compatibility between students and study pods. Respond with JSON format containing: score (0-100), reasons (array), compatibility (object with scheduleMatch, paceMatch, subjectMatch, goalAlignment scores 0-100)."
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      response_format: { type: "json_object" },
+    const response = await genai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json"
+      }
     });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
+    const text = response.text;
+    const parsed = JSON.parse(text || "{}");
     return {
-      score: Math.max(0, Math.min(100, result.score || 0)),
-      reasons: result.reasons || [],
+      score: Math.max(0, Math.min(100, parsed.score || 0)),
+      reasons: parsed.reasons || [],
       compatibility: {
-        scheduleMatch: Math.max(0, Math.min(100, result.compatibility?.scheduleMatch || 0)),
-        paceMatch: Math.max(0, Math.min(100, result.compatibility?.paceMatch || 0)),
-        subjectMatch: Math.max(0, Math.min(100, result.compatibility?.subjectMatch || 0)),
-        goalAlignment: Math.max(0, Math.min(100, result.compatibility?.goalAlignment || 0)),
+        scheduleMatch: Math.max(0, Math.min(100, parsed.compatibility?.scheduleMatch || 0)),
+        paceMatch: Math.max(0, Math.min(100, parsed.compatibility?.paceMatch || 0)),
+        subjectMatch: Math.max(0, Math.min(100, parsed.compatibility?.subjectMatch || 0)),
+        goalAlignment: Math.max(0, Math.min(100, parsed.compatibility?.goalAlignment || 0)),
       }
     };
   } catch (error) {
@@ -143,24 +145,17 @@ export async function answerStudyQuestion(
     const systemPrompt = `You are an expert AI tutor that helps students with academic questions. 
     Provide clear, educational answers that help students understand concepts rather than just giving answers.
     ${subject ? `Focus on ${subject} topics.` : ""}
-    ${context ? `Additional context: ${context}` : ""}`;
+    ${context ? `Additional context: ${context}` : ""}
+    
+    Question: ${question}`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
-        {
-          role: "user",
-          content: question,
-        },
-      ],
-      max_tokens: 1000,
+    const response = await genai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: systemPrompt
     });
 
-    return response.choices[0].message.content || "I'm sorry, I couldn't generate a response to your question.";
+    const text = response.text;
+    return text || "I'm sorry, I couldn't generate a response to your question.";
   } catch (error) {
     console.error("Error answering study question:", error);
     throw new Error("Failed to generate AI response");
@@ -176,24 +171,16 @@ export async function generateStudyTip(
     const prompt = `Generate a helpful study tip for a ${learningPace} level student studying ${subject}.
     Recent topics they've been working on: ${recentTopics.join(", ")}
     
-    Make the tip practical, actionable, and relevant to their current studies.`;
+    Make the tip practical, actionable, and relevant to their current studies.
+    Keep the response under 100 words and focus on actionable advice.`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      messages: [
-        {
-          role: "system",
-          content: "You are an educational expert that provides concise, practical study tips. Keep responses under 100 words and focus on actionable advice."
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      max_tokens: 150,
+    const response = await genai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt
     });
 
-    return response.choices[0].message.content || "Keep practicing regularly and don't hesitate to ask questions when you need help!";
+    const text = response.text;
+    return text || "Keep practicing regularly and don't hesitate to ask questions when you need help!";
   } catch (error) {
     console.error("Error generating study tip:", error);
     return "Stay consistent with your studies and break complex topics into smaller, manageable parts.";
@@ -216,28 +203,29 @@ export async function moderateChatMessage(message: string): Promise<{
     - Relevant to educational context
     - No harassment or inappropriate content
     
-    If inappropriate, suggest a better version.`;
+    If inappropriate, suggest a better version.
+    
+    Respond with JSON format containing:
+    - isAppropriate (boolean)
+    - reason (string if inappropriate)
+    - suggestedEdit (string if needed)
+    
+    Format: {"isAppropriate": true, "reason": "", "suggestedEdit": ""}`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      messages: [
-        {
-          role: "system",
-          content: "You are a content moderator for educational platforms. Respond with JSON format containing: isAppropriate (boolean), reason (string if inappropriate), suggestedEdit (string if needed)."
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      response_format: { type: "json_object" },
+    const response = await genai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json"
+      }
     });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
+    const text = response.text;
+    const parsed = JSON.parse(text || "{}");
     return {
-      isAppropriate: result.isAppropriate !== false, // Default to true if undefined
-      reason: result.reason,
-      suggestedEdit: result.suggestedEdit,
+      isAppropriate: parsed.isAppropriate !== false, // Default to true if undefined
+      reason: parsed.reason,
+      suggestedEdit: parsed.suggestedEdit,
     };
   } catch (error) {
     console.error("Error moderating chat message:", error);

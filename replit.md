@@ -22,7 +22,7 @@ Preferred communication style: Simple, everyday language.
 ### Backend Architecture
 - **Runtime**: Node.js with Express.js server framework
 - **API Design**: RESTful API with conventional HTTP methods and status codes
-- **Authentication**: Replit Auth integration with OpenID Connect for secure user authentication
+- **Authentication**: Passport.js with Google OAuth and email/password authentication
 - **Session Management**: Express sessions with PostgreSQL session store for persistent login state
 - **Error Handling**: Centralized error middleware with structured error responses
 - **Development Setup**: Hot module replacement with Vite middleware integration
@@ -35,14 +35,14 @@ Preferred communication style: Simple, everyday language.
 - **Connection Pooling**: Neon serverless connection pooling for efficient database access
 
 ### Authentication and Authorization
-- **Provider**: Replit Auth with OAuth 2.0/OpenID Connect flow
+- **Provider**: Passport.js with Google OAuth 2.0 and local email/password strategies
 - **Session Storage**: PostgreSQL-backed sessions with configurable TTL (1 week default)
 - **Route Protection**: Middleware-based authentication checks on protected API endpoints
-- **User Management**: Automatic user creation/update on authentication with profile management
+- **User Management**: Database-stored user profiles with password hashing and Google ID linking
 - **Security**: HTTP-only cookies with secure flags and CSRF protection
 
 ### AI Integration
-- **Provider**: OpenAI GPT-5 for AI-powered features
+- **Provider**: Google Gemini 2.5 Flash for AI-powered features
 - **Study Matching**: Intelligent algorithm for compatible study partner recommendations
 - **Content Generation**: Personalized study plans, tips, and academic question answering
 - **Chat Moderation**: AI-powered content filtering for group communications
@@ -52,8 +52,8 @@ Preferred communication style: Simple, everyday language.
 
 ### Third-Party Services
 - **Neon Database**: Serverless PostgreSQL hosting for primary data storage
-- **OpenAI API**: GPT-5 integration for AI-powered features and recommendations
-- **Replit Auth**: Authentication service with OAuth 2.0/OpenID Connect support
+- **Google Gemini API**: Gemini 2.5 Flash integration for AI-powered features and recommendations
+- **Google OAuth**: Authentication service with OAuth 2.0 flow for secure login
 - **Google Fonts**: Font delivery for Inter, Orbitron, and other typefaces
 
 ### Core Libraries

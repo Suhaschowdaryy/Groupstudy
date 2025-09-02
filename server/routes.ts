@@ -1,14 +1,14 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./auth";
 import { 
   generateStudyPlan, 
   calculatePodMatch, 
   answerStudyQuestion, 
   generateStudyTip,
   moderateChatMessage 
-} from "./openai";
+} from "./gemini";
 import { 
   insertStudyPodSchema, 
   insertPodMembershipSchema,
@@ -19,24 +19,15 @@ import {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
-  await setupAuth(app);
+  setupAuth(app);
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
+  // This route is now handled in auth.ts
+  // Removing duplicate route definition
 
   // Profile routes
   app.put('/api/profile', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const profileData = req.body;
       
       const user = await storage.updateUserProfile(userId, profileData);
@@ -50,7 +41,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Study Pod routes
   app.post('/api/pods', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const podData = insertStudyPodSchema.parse({
         ...req.body,
         creatorId: userId
@@ -101,7 +92,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/pods/:id/join', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const podId = req.params.id;
       
       const membership = await storage.joinPod({
@@ -130,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User's pods
   app.get('/api/my-pods', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const userPods = await storage.getUserPods(userId);
       res.json(userPods);
     } catch (error) {
@@ -142,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Recommendations
   app.get('/api/recommendations', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const limit = parseInt(req.query.limit as string) || 5;
       
       const recommendations = await storage.getRecommendedPods(userId, limit);
@@ -208,7 +199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/upcoming-sessions', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const sessions = await storage.getUpcomingSessions(userId);
       res.json(sessions);
     } catch (error) {
@@ -219,7 +210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/sessions/:id/attend', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const sessionId = req.params.id;
       
       const attendance = await storage.markAttendance({
@@ -238,7 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Badges
   app.get('/api/badges', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const badges = await storage.getUserBadges(userId);
       res.json(badges);
     } catch (error) {
@@ -262,7 +253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/pods/:id/messages', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const podId = req.params.id;
       const { content } = req.body;
       
@@ -294,7 +285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Assistant
   app.post('/api/ai/ask', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { question, subject, context } = req.body;
       
       if (!question) {
@@ -320,7 +311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/ai/study-tip', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -348,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/ai/study-plan', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { subject, timeAvailable } = req.body;
       
       const user = await storage.getUser(userId);
@@ -372,7 +363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/ai/history', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const limit = parseInt(req.query.limit as string) || 20;
       const history = await storage.getUserAiHistory(userId, limit);
       res.json(history);
