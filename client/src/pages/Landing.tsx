@@ -5,9 +5,6 @@ import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 
 export default function Landing() {
-  const handleLogin = () => {
-    window.location.href = '/api/login';
-  };
 
   const features = [
     {
@@ -79,14 +76,15 @@ export default function Landing() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                onClick={handleLogin}
-                size="lg"
-                className="bg-gradient-to-r from-primary to-secondary text-white hover:from-primary/90 hover:to-secondary/90 text-lg px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-                data-testid="get-started-button"
-              >
-                Get Started with AI Matching
-              </Button>
+              <Link href="/login">
+                <Button 
+                  size="lg"
+                  className="bg-gradient-to-r from-primary to-secondary text-white hover:from-primary/90 hover:to-secondary/90 text-lg px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  data-testid="get-started-button"
+                >
+                  Get Started with AI Matching
+                </Button>
+              </Link>
               
               <Link href="/login">
                 <Button 
@@ -208,14 +206,15 @@ export default function Landing() {
             <p className="text-xl text-muted-foreground mb-8" data-testid="cta-description">
               Join StudyPod today and experience the power of AI-driven collaborative learning.
             </p>
-            <Button 
-              onClick={handleLogin}
-              size="lg"
-              className="bg-gradient-to-r from-primary to-secondary text-white hover:from-primary/90 hover:to-secondary/90 text-lg px-12 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-              data-testid="cta-button"
-            >
-              Start Your Learning Journey
-            </Button>
+            <Link href="/login">
+              <Button 
+                size="lg"
+                className="bg-gradient-to-r from-primary to-secondary text-white hover:from-primary/90 hover:to-secondary/90 text-lg px-12 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                data-testid="cta-button"
+              >
+                Start Your Learning Journey
+              </Button>
+            </Link>
           </motion.div>
         </div>
       </section>
