@@ -193,24 +193,28 @@ export async function moderateChatMessage(message: string): Promise<{
   suggestedEdit?: string;
 }> {
   try {
-    const prompt = `Analyze this chat message for appropriateness in an educational study group setting:
+    const prompt = `Analyze this chat message for harmful content in a study group chat:
     
     Message: "${message}"
     
-    Check for:
-    - Academic appropriateness
-    - Respectful language
-    - Relevant to educational context
-    - No harassment or inappropriate content
+    ONLY mark as inappropriate if the message contains:
+    - Explicit hate speech or slurs
+    - Serious harassment or threats  
+    - Explicit sexual content
+    - Spam or dangerous links
+    - Bullying or personal attacks
     
-    If inappropriate, suggest a better version.
+    Allow:
+    - Casual conversation and friendly chat
+    - Study-related discussions  
+    - Mild frustration or casual language
+    - Off-topic but harmless conversations
+    - Questions and general comments
     
-    Respond with JSON format containing:
-    - isAppropriate (boolean)
-    - reason (string if inappropriate)
-    - suggestedEdit (string if needed)
+    Be very lenient - only block truly harmful content.
     
-    Format: {"isAppropriate": true, "reason": "", "suggestedEdit": ""}`;
+    Respond with JSON format:
+    {"isAppropriate": true, "reason": "", "suggestedEdit": ""}`;
 
     const response = await genai.models.generateContent({
       model: "gemini-2.5-flash",
