@@ -58,6 +58,7 @@ export interface IStorage {
   createStudyPod(pod: InsertStudyPod): Promise<StudyPod>;
   getStudyPod(id: string): Promise<StudyPod | undefined>;
   getStudyPods(filters?: { subject?: string; learningPace?: string }): Promise<StudyPod[]>;
+  updateStudyPod(podId: string, data: Partial<StudyPod>): Promise<StudyPod>;
   joinPod(membership: InsertPodMembership): Promise<PodMembership>;
   getPodMembers(podId: string): Promise<(PodMembership & { user: User })[]>;
   getUserPods(userId: string): Promise<(PodMembership & { pod: StudyPod })[]>;
@@ -181,6 +182,15 @@ export class DatabaseStorage implements IStorage {
       .from(studyPods)
       .where(and(...conditions))
       .orderBy(desc(studyPods.createdAt));
+  }
+
+  async updateStudyPod(podId: string, data: Partial<StudyPod>): Promise<StudyPod> {
+    const [pod] = await db
+      .update(studyPods)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(studyPods.id, podId))
+      .returning();
+    return pod;
   }
 
   async joinPod(membershipData: InsertPodMembership): Promise<PodMembership> {

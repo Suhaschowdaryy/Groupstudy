@@ -115,6 +115,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/pods/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const podId = req.params.id;
+      
+      // Check if user is the creator of the pod
+      const pod = await storage.getStudyPod(podId);
+      if (!pod) {
+        return res.status(404).json({ message: "Study pod not found" });
+      }
+      
+      if (pod.creatorId !== userId) {
+        return res.status(403).json({ message: "Only the pod creator can update settings" });
+      }
+      
+      const updateData = insertStudyPodSchema.pick({
+        name: true,
+        description: true,
+        subject: true,
+        goal: true,
+        learningPace: true,
+        maxMembers: true
+      }).parse(req.body);
+      
+      const updatedPod = await storage.updateStudyPod(podId, updateData);
+      res.json(updatedPod);
+    } catch (error) {
+      console.error("Error updating pod:", error);
+      res.status(500).json({ message: "Failed to update study pod" });
+    }
+  });
+
   app.get('/api/pods/:id/members', async (req, res) => {
     try {
       const members = await storage.getPodMembers(req.params.id);

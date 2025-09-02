@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useParams } from 'wouter';
 import { Users, Calendar, Clock, Target, Video, Settings, Upload, FileText, Download, Trash2, ExternalLink } from 'lucide-react';
@@ -16,6 +18,10 @@ import { apiRequest } from '@/lib/queryClient';
 import { isUnauthorizedError } from '@/lib/authUtils';
 import ChatRoom from '@/components/ChatRoom';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { insertStudyPodSchema, type StudyPod } from '../../../shared/schema';
+import { z } from 'zod';
 
 export default function PodDetail() {
   const { id: podId } = useParams();
@@ -23,15 +29,46 @@ export default function PodDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [fileFormData, setFileFormData] = useState({
     fileName: '',
     fileType: '',
     fileUrl: '',
     description: '',
   });
-  const { data: pod, isLoading: podLoading } = useQuery({
+
+  // Settings form schema - exclude fields that shouldn't be editable
+  const settingsSchema = insertStudyPodSchema.pick({
+    name: true,
+    description: true,
+    subject: true,
+    goal: true,
+    learningPace: true,
+    maxMembers: true
+  });
+  const { data: pod, isLoading: podLoading } = useQuery<StudyPod>({
     queryKey: ['/api/pods', podId],
     enabled: !!podId && !!user,
+  });
+
+  const settingsForm = useForm<z.infer<typeof settingsSchema>>({
+    resolver: zodResolver(settingsSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      subject: '',
+      goal: '',
+      learningPace: '',
+      maxMembers: 8
+    },
+    values: pod ? {
+      name: pod.name ?? '',
+      description: pod.description ?? '',
+      subject: pod.subject ?? '',
+      goal: pod.goal ?? '',
+      learningPace: pod.learningPace ?? '',
+      maxMembers: pod.maxMembers ?? 8
+    } : undefined
   });
 
   const { data: members } = useQuery({
@@ -112,6 +149,41 @@ export default function PodDetail() {
     if (confirm('Are you sure you want to delete this file?')) {
       deleteFileMutation.mutate(fileId);
     }
+  };
+
+  // Settings update mutation
+  const updatePodMutation = useMutation({
+    mutationFn: async (settingsData: z.infer<typeof settingsSchema>) => {
+      return apiRequest('PUT', `/api/pods/${podId}`, settingsData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Pod settings updated successfully!",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/pods', podId] });
+      setIsSettingsDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update pod settings",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSettingsSubmit = (data: z.infer<typeof settingsSchema>) => {
+    updatePodMutation.mutate(data);
   };
 
   // Video call mutations
@@ -277,9 +349,156 @@ export default function PodDetail() {
                     <Video className="w-4 h-4" />
                   </Button>
                 )}
-                <Button size="icon" variant="outline" data-testid="pod-settings-button">
-                  <Settings className="w-4 h-4" />
-                </Button>
+                <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="icon" variant="outline" data-testid="pod-settings-button">
+                      <Settings className="w-4 h-4" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Pod Settings</DialogTitle>
+                    </DialogHeader>
+                    <Form {...settingsForm}>
+                      <form onSubmit={settingsForm.handleSubmit(handleSettingsSubmit)} className="space-y-4">
+                        <FormField
+                          control={settingsForm.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Pod Name</FormLabel>
+                              <FormControl>
+                                <Input {...field} data-testid="settings-pod-name" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={settingsForm.control}
+                          name="description"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Description</FormLabel>
+                              <FormControl>
+                                <Textarea {...field} data-testid="settings-pod-description" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={settingsForm.control}
+                          name="subject"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Subject</FormLabel>
+                              <FormControl>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger data-testid="settings-subject">
+                                    <SelectValue placeholder="Select subject" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="mathematics">Mathematics</SelectItem>
+                                    <SelectItem value="physics">Physics</SelectItem>
+                                    <SelectItem value="chemistry">Chemistry</SelectItem>
+                                    <SelectItem value="biology">Biology</SelectItem>
+                                    <SelectItem value="computer-science">Computer Science</SelectItem>
+                                    <SelectItem value="engineering">Engineering</SelectItem>
+                                    <SelectItem value="literature">Literature</SelectItem>
+                                    <SelectItem value="history">History</SelectItem>
+                                    <SelectItem value="psychology">Psychology</SelectItem>
+                                    <SelectItem value="economics">Economics</SelectItem>
+                                    <SelectItem value="other">Other</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={settingsForm.control}
+                          name="learningPace"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Learning Pace</FormLabel>
+                              <FormControl>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <SelectTrigger data-testid="settings-learning-pace">
+                                    <SelectValue placeholder="Select pace" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="beginner">Beginner</SelectItem>
+                                    <SelectItem value="intermediate">Intermediate</SelectItem>
+                                    <SelectItem value="advanced">Advanced</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={settingsForm.control}
+                          name="maxMembers"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Max Members</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="2" 
+                                  max="20" 
+                                  {...field}
+                                  onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                                  data-testid="settings-max-members"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={settingsForm.control}
+                          name="goal"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Study Goal</FormLabel>
+                              <FormControl>
+                                <Textarea {...field} data-testid="settings-pod-goal" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <div className="flex justify-end gap-2 pt-4">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsSettingsDialogOpen(false)}
+                            data-testid="settings-cancel-button"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={updatePodMutation.isPending}
+                            data-testid="settings-save-button"
+                          >
+                            {updatePodMutation.isPending ? 'Saving...' : 'Save Changes'}
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
 

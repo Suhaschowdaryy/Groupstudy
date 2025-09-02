@@ -156,7 +156,7 @@ export default function Discover() {
               <p className="text-muted-foreground mb-4">
                 Try adjusting your search criteria or create a new study pod.
               </p>
-              <Button data-testid="create-pod-button">Create New Pod</Button>
+              <Button onClick={() => navigate('/create-pod')} data-testid="create-pod-button">Create New Pod</Button>
             </CardContent>
           </Card>
         ) : (
