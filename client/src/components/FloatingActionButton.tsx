@@ -14,21 +14,21 @@ export function FloatingActionButton() {
     {
       icon: Users,
       label: 'Create Pod',
-      href: '/create-pod',
+      to: '/create-pod',
       color: 'bg-primary',
       testId: 'fab-create-pod'
     },
     {
       icon: Search,
       label: 'Find Pods',
-      href: '/discover',
+      to: '/discover',
       color: 'bg-secondary',
       testId: 'fab-find-pods'
     },
     {
       icon: Bot,
       label: 'Ask AI',
-      href: '/ai-chat',
+      to: '/ai-chat',
       color: 'bg-accent',
       testId: 'fab-ask-ai'
     },
@@ -55,7 +55,7 @@ export function FloatingActionButton() {
                   exit={{ opacity: 0, y: 20 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <Link href={item.href}>
+                  <Link to={item.to}>
                     <Card 
                       className="flex items-center space-x-3 glassmorphism rounded-full px-4 py-3 shadow-lg hover:shadow-xl transition-all group cursor-pointer bg-card/80 dark:bg-card/80 backdrop-blur-xl border border-border/50"
                       data-testid={item.testId}

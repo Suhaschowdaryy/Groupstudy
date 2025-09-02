@@ -11,10 +11,10 @@ export function Navigation() {
   const [location] = useLocation();
 
   const navItems = [
-    { href: '/', label: 'Dashboard', testId: 'nav-dashboard' },
-    { href: '/my-pods', label: 'My Pods', testId: 'nav-my-pods' },
-    { href: '/discover', label: 'Discover', testId: 'nav-discover' },
-    { href: '/profile', label: 'Progress', testId: 'nav-progress' },
+    { to: '/', label: 'Dashboard', testId: 'nav-dashboard' },
+    { to: '/my-pods', label: 'My Pods', testId: 'nav-my-pods' },
+    { to: '/discover', label: 'Discover', testId: 'nav-discover' },
+    { to: '/profile', label: 'Progress', testId: 'nav-progress' },
   ];
 
   return (
@@ -22,7 +22,7 @@ export function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-4">
-            <Link href="/" data-testid="logo-link">
+            <Link to="/" data-testid="logo-link">
               <div className="flex items-center space-x-2 cursor-pointer">
                 <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
                   <Brain className="text-white text-xl" />
@@ -36,11 +36,11 @@ export function Navigation() {
           
           <div className="hidden md:flex items-center space-x-6">
             {navItems.map((item) => (
-              <Link key={item.href} href={item.href}>
+              <Link key={item.to} to={item.to}>
                 <span
                   data-testid={item.testId}
                   className={`text-muted-foreground hover:text-primary transition-colors cursor-pointer ${
-                    location === item.href ? 'text-primary font-medium' : ''
+                    location === item.to ? 'text-primary font-medium' : ''
                   }`}
                 >
                   {item.label}
@@ -75,7 +75,7 @@ export function Navigation() {
             </Button>
             
             {user && (
-              <Link href="/profile">
+              <Link to="/profile">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-secondary p-0.5 cursor-pointer" data-testid="profile-avatar">
                   <Avatar className="w-full h-full">
                     <AvatarImage 

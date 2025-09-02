@@ -46,7 +46,7 @@ export function MyActivePods() {
           <Layers className="text-primary" />
           My Active Pods
         </h2>
-        <Link href="/create-pod">
+        <Link to="/create-pod">
           <Button 
             className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
             data-testid="create-new-pod"
@@ -67,7 +67,7 @@ export function MyActivePods() {
               <p className="text-muted-foreground mb-4">
                 Join a study pod to start collaborating with other students!
               </p>
-              <Link href="/discover">
+              <Link to="/discover">
                 <Button>Discover Pods</Button>
               </Link>
             </CardContent>

@@ -35,7 +35,7 @@ export default function MyPods() {
             </p>
           </div>
           
-          <Link href="/create-pod">
+          <Link to="/create-pod">
             <Button 
               className="bg-gradient-to-r from-primary to-secondary text-white hover:from-primary/90 hover:to-secondary/90"
               data-testid="create-pod-button"
@@ -66,7 +66,7 @@ export default function MyPods() {
                 Create your first study pod or discover existing ones to start collaborating with other students.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/create-pod">
+                <Link to="/create-pod">
                   <Button className="bg-primary text-primary-foreground">Create Study Pod</Button>
                 </Link>
                 <Link href="/discover">
@@ -192,7 +192,7 @@ export default function MyPods() {
                         )}
                       </div>
                       
-                      <Link href={`/pod/${membership.pod.id}`}>
+                      <Link to={`/pod/${membership.pod.id}`}>
                         <Button 
                           className="bg-primary text-primary-foreground hover:bg-primary/90"
                           data-testid={`view-details-${membership.pod.id}`}

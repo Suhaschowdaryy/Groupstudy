@@ -104,3 +104,55 @@ The app will be available at `http://localhost:5000`
 ### Missing Dependencies
 - Run `npm install` to ensure all packages are installed
 - If issues persist, delete `node_modules` and `package-lock.json`, then reinstall
+
+## Deploying to Vercel
+
+### Google OAuth Setup for Production
+
+1. **Google Cloud Console Setup:**
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select existing one
+   - Enable Google+ API and Google OAuth2 API
+   - Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
+
+2. **OAuth Configuration:**
+   - Application Type: Web application
+   - Authorized JavaScript origins: 
+     ```
+     https://your-app-name.vercel.app
+     ```
+   - Authorized redirect URIs:
+     ```
+     https://your-app-name.vercel.app/api/callback
+     ```
+
+3. **Vercel Environment Variables:**
+   ```env
+   DATABASE_URL=your-neon-database-url
+   GOOGLE_API_KEY=your-gemini-api-key
+   SESSION_SECRET=your-random-session-secret
+   GOOGLE_CLIENT_ID=your-google-oauth-client-id
+   GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+   NODE_ENV=production
+   ```
+
+4. **Vercel Deployment Steps:**
+   ```bash
+   # Connect your GitHub repo to Vercel
+   # Add environment variables in Vercel dashboard
+   # Deploy automatically on git push
+   ```
+
+### OAuth URLs for Different Deployments
+
+**For Vercel deployment:**
+- Authorized origins: `https://your-vercel-app.vercel.app`  
+- Redirect URI: `https://your-vercel-app.vercel.app/api/callback`
+
+**For local development:**
+- Authorized origins: `http://localhost:5000`
+- Redirect URI: `http://localhost:5000/api/callback`
+
+**For custom domain:**
+- Authorized origins: `https://yourdomain.com`
+- Redirect URI: `https://yourdomain.com/api/callback`

@@ -13,18 +13,23 @@ import { useToast } from '@/hooks/use-toast';
 import { isUnauthorizedError } from '@/lib/authUtils';
 import { Search, Users, Clock, Target, Signal, Filter } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useLocation } from 'wouter';
 
 export default function Discover() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [subjectFilter, setSubjectFilter] = useState('');
-  const [paceFilter, setPaceFilter] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('all');
+  const [paceFilter, setPaceFilter] = useState('all');
 
   const { data: allPods, isLoading } = useQuery({
-    queryKey: ['/api/pods', { subject: subjectFilter, learningPace: paceFilter }],
+    queryKey: ['/api/pods', { 
+      subject: subjectFilter === 'all' ? '' : subjectFilter, 
+      learningPace: paceFilter === 'all' ? '' : paceFilter 
+    }],
     enabled: !!user,
   });
 
@@ -108,7 +113,7 @@ export default function Discover() {
                   <SelectValue placeholder="All Subjects" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Subjects</SelectItem>
+                  <SelectItem value="all">All Subjects</SelectItem>
                   {subjects.map(subject => (
                     <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                   ))}
@@ -120,7 +125,7 @@ export default function Discover() {
                   <SelectValue placeholder="All Paces" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Paces</SelectItem>
+                  <SelectItem value="all">All Paces</SelectItem>
                   {paces.map(pace => (
                     <SelectItem key={pace} value={pace}>
                       {pace.charAt(0).toUpperCase() + pace.slice(1)}
@@ -248,6 +253,7 @@ export default function Discover() {
                       <Button 
                         variant="outline" 
                         className="w-full"
+                        onClick={() => navigate(`/pod/${pod.id}`)}
                         data-testid={`view-pod-${pod.id}`}
                       >
                         View Details
