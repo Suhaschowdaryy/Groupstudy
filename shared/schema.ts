@@ -389,6 +389,8 @@ export const insertVideoCallSessionSchema = createInsertSchema(videoCallSessions
   isActive: true,
   startedAt: true,
   endedAt: true,
+}).extend({
+  scheduledAt: z.string().datetime().optional().transform(str => str ? new Date(str) : undefined),
 });
 
 export const insertVideoCallParticipantSchema = createInsertSchema(videoCallParticipants).omit({
