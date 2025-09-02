@@ -13,7 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { isUnauthorizedError } from '@/lib/authUtils';
-import { User, Settings, Target, Clock, BookOpen } from 'lucide-react';
+import { User, Settings, Target, Clock, BookOpen, Github, Linkedin, Upload, ExternalLink } from 'lucide-react';
 
 export default function Profile() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -21,6 +21,11 @@ export default function Profile() {
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    profileImageUrl: '',
+    linkedInId: '',
+    githubId: '',
     studyGoals: [] as string[],
     preferredSubjects: [] as string[],
     learningPace: '',
@@ -48,10 +53,15 @@ export default function Profile() {
   useEffect(() => {
     if (user) {
       setFormData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        profileImageUrl: user.profileImageUrl || '',
+        linkedInId: user.linkedInId || '',
+        githubId: user.githubId || '',
         studyGoals: user.studyGoals || [],
         preferredSubjects: user.preferredSubjects || [],
         learningPace: user.learningPace || '',
-        availability: user.availability || {},
+        availability: user.availability as Record<string, string[]> || {},
       });
     }
   }, [user]);
@@ -168,6 +178,41 @@ export default function Profile() {
                 <p className="text-muted-foreground" data-testid="user-email">
                   {user.email}
                 </p>
+                
+                {/* Social Links */}
+                {(user.linkedInId || user.githubId) && (
+                  <div className="flex justify-center gap-3 mt-3">
+                    {user.linkedInId && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => {
+                          if (user.linkedInId) {
+                            const url = user.linkedInId.startsWith('http') 
+                              ? user.linkedInId 
+                              : `https://linkedin.com/in/${user.linkedInId}`;
+                            window.open(url, '_blank');
+                          }
+                        }}
+                        data-testid="linkedin-link"
+                      >
+                        <Linkedin className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {user.githubId && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => window.open(`https://github.com/${user.githubId}`, '_blank')}
+                        data-testid="github-link"
+                      >
+                        <Github className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">
@@ -198,6 +243,101 @@ export default function Profile() {
           {/* Profile Form */}
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Basic Information */}
+              <Card className="glassmorphism bg-card/50 dark:bg-card/50 backdrop-blur-lg border border-border/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="text-primary w-5 h-5" />
+                    Basic Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                        placeholder="Enter your first name"
+                        data-testid="first-name-input"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                        placeholder="Enter your last name"
+                        data-testid="last-name-input"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="profileImageUrl">Profile Picture URL</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="profileImageUrl"
+                        value={formData.profileImageUrl}
+                        onChange={(e) => setFormData(prev => ({ ...prev, profileImageUrl: e.target.value }))}
+                        placeholder="https://example.com/your-photo.jpg"
+                        data-testid="profile-image-input"
+                      />
+                      <Button type="button" variant="outline" size="icon" title="Upload photo">
+                        <Upload className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Paste a URL to your profile picture or upload one
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Social Profiles */}
+              <Card className="glassmorphism bg-card/50 dark:bg-card/50 backdrop-blur-lg border border-border/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ExternalLink className="text-primary w-5 h-5" />
+                    Social Profiles
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="linkedInId" className="flex items-center gap-2">
+                      <Linkedin className="w-4 h-4" />
+                      LinkedIn Profile
+                    </Label>
+                    <Input
+                      id="linkedInId"
+                      value={formData.linkedInId}
+                      onChange={(e) => setFormData(prev => ({ ...prev, linkedInId: e.target.value }))}
+                      placeholder="https://linkedin.com/in/your-profile or your-username"
+                      data-testid="linkedin-input"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Share your LinkedIn profile to connect with other students
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="githubId" className="flex items-center gap-2">
+                      <Github className="w-4 h-4" />
+                      GitHub Username
+                    </Label>
+                    <Input
+                      id="githubId"
+                      value={formData.githubId}
+                      onChange={(e) => setFormData(prev => ({ ...prev, githubId: e.target.value }))}
+                      placeholder="your-github-username"
+                      data-testid="github-input"
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Show your coding projects and collaborate on assignments
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
               {/* Study Goals */}
               <Card className="glassmorphism bg-card/50 dark:bg-card/50 backdrop-blur-lg border border-border/50">
                 <CardHeader>

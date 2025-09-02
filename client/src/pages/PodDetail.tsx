@@ -1,19 +1,34 @@
 import { useAuth } from '@/hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Navigation } from '@/components/Navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useParams } from 'wouter';
-import { Users, Calendar, Clock, Target, Video, Settings } from 'lucide-react';
+import { Users, Calendar, Clock, Target, Video, Settings, Upload, FileText, Download, Trash2, ExternalLink } from 'lucide-react';
+import { apiRequest } from '@/lib/queryClient';
+import { isUnauthorizedError } from '@/lib/authUtils';
 import ChatRoom from '@/components/ChatRoom';
+import { useState } from 'react';
 
 export default function PodDetail() {
   const { id: podId } = useParams();
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
+  const [fileFormData, setFileFormData] = useState({
+    fileName: '',
+    fileType: '',
+    fileUrl: '',
+    description: '',
+  });
   const { data: pod, isLoading: podLoading } = useQuery({
     queryKey: ['/api/pods', podId],
     enabled: !!podId && !!user,
@@ -23,6 +38,151 @@ export default function PodDetail() {
     queryKey: ['/api/pods', podId, 'members'],
     enabled: !!podId && !!user,
   });
+
+  const { data: files, isLoading: filesLoading } = useQuery({
+    queryKey: ['/api/pods', podId, 'files'],
+    enabled: !!podId && !!user,
+  });
+
+  const { data: activeCall } = useQuery({
+    queryKey: ['/api/pods', podId, 'active-call'],
+    enabled: !!podId && !!user,
+    refetchInterval: 5000, // Check every 5 seconds
+  });
+
+  // File upload mutation
+  const uploadFileMutation = useMutation({
+    mutationFn: async (fileData: any) => {
+      return apiRequest('POST', `/api/pods/${podId}/files`, fileData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "File uploaded successfully!",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/pods', podId, 'files'] });
+      setIsFileDialogOpen(false);
+      setFileFormData({ fileName: '', fileType: '', fileUrl: '', description: '' });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload file",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // File delete mutation
+  const deleteFileMutation = useMutation({
+    mutationFn: async (fileId: string) => {
+      return apiRequest('DELETE', `/api/files/${fileId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "File deleted successfully!",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/pods', podId, 'files'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete file",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFileSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    uploadFileMutation.mutate(fileFormData);
+  };
+
+  const handleFileDelete = (fileId: string) => {
+    if (confirm('Are you sure you want to delete this file?')) {
+      deleteFileMutation.mutate(fileId);
+    }
+  };
+
+  // Video call mutations
+  const createVideoCallMutation = useMutation({
+    mutationFn: async (callData: any) => {
+      return apiRequest('POST', `/api/pods/${podId}/video-calls`, callData);
+    },
+    onSuccess: (newCall: any) => {
+      toast({
+        title: "Success",
+        description: "Video call started! Opening meeting...",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/pods', podId, 'active-call'] });
+      
+      // Auto-join the call
+      if (newCall.meetingUrl) {
+        window.open(newCall.meetingUrl, '_blank');
+      }
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => { window.location.href = "/api/login"; }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start video call",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const joinVideoCallMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      return apiRequest('POST', `/api/video-calls/${sessionId}/join`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Joined video call successfully!",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/pods', podId, 'active-call'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to join video call",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const startVideoCall = () => {
+    // Generate a Jitsi Meet URL for the pod
+    const meetingId = `studypod-${podId}-${Date.now()}`;
+    const jitsiUrl = `https://meet.jit.si/${meetingId}`;
+    
+    const callData = {
+      title: `${pod?.name} Study Session`,
+      description: 'Video call for collaborative studying',
+      meetingUrl: jitsiUrl,
+      scheduledAt: new Date().toISOString(),
+    };
+    
+    createVideoCallMutation.mutate(callData);
+  };
 
   if (!user) return null;
 
@@ -91,9 +251,32 @@ export default function PodDetail() {
               </div>
               
               <div className="flex items-center space-x-2">
-                <Button size="icon" variant="outline" data-testid="video-call-button">
-                  <Video className="w-4 h-4" />
-                </Button>
+                {activeCall ? (
+                  <Button 
+                    className="bg-green-500 hover:bg-green-600 text-white"
+                    onClick={() => {
+                      if (activeCall.meetingUrl) {
+                        window.open(activeCall.meetingUrl, '_blank');
+                        // Track that user joined
+                        joinVideoCallMutation.mutate(activeCall.id);
+                      }
+                    }}
+                    data-testid="join-active-call-button"
+                  >
+                    <Video className="w-4 h-4 mr-2" />
+                    Join Call
+                  </Button>
+                ) : (
+                  <Button 
+                    size="icon" 
+                    variant="outline" 
+                    onClick={startVideoCall}
+                    disabled={createVideoCallMutation.isPending}
+                    data-testid="video-call-button"
+                  >
+                    <Video className="w-4 h-4" />
+                  </Button>
+                )}
                 <Button size="icon" variant="outline" data-testid="pod-settings-button">
                   <Settings className="w-4 h-4" />
                 </Button>
@@ -193,6 +376,148 @@ export default function PodDetail() {
               </CardContent>
             </Card>
 
+            {/* Files Section */}
+            <Card className="glassmorphism bg-card/50 dark:bg-card/50 backdrop-blur-lg border border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="text-primary w-5 h-5" />
+                    Files ({files?.length || 0})
+                  </div>
+                  <Dialog open={isFileDialogOpen} onOpenChange={setIsFileDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" data-testid="upload-file-button">
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Upload File</DialogTitle>
+                      </DialogHeader>
+                      <form onSubmit={handleFileSubmit} className="space-y-4">
+                        <div>
+                          <Label htmlFor="fileName">File Name</Label>
+                          <Input
+                            id="fileName"
+                            value={fileFormData.fileName}
+                            onChange={(e) => setFileFormData(prev => ({ ...prev, fileName: e.target.value }))}
+                            placeholder="Enter file name"
+                            required
+                            data-testid="file-name-input"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="fileType">File Type</Label>
+                          <Input
+                            id="fileType"
+                            value={fileFormData.fileType}
+                            onChange={(e) => setFileFormData(prev => ({ ...prev, fileType: e.target.value }))}
+                            placeholder="pdf, doc, txt, image, etc."
+                            required
+                            data-testid="file-type-input"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="fileUrl">File URL</Label>
+                          <Input
+                            id="fileUrl"
+                            value={fileFormData.fileUrl}
+                            onChange={(e) => setFileFormData(prev => ({ ...prev, fileUrl: e.target.value }))}
+                            placeholder="https://example.com/file.pdf"
+                            type="url"
+                            required
+                            data-testid="file-url-input"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="description">Description (Optional)</Label>
+                          <Textarea
+                            id="description"
+                            value={fileFormData.description}
+                            onChange={(e) => setFileFormData(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Brief description of the file"
+                            data-testid="file-description-input"
+                          />
+                        </div>
+                        <Button 
+                          type="submit" 
+                          disabled={uploadFileMutation.isPending}
+                          className="w-full"
+                          data-testid="submit-file"
+                        >
+                          {uploadFileMutation.isPending ? 'Uploading...' : 'Upload File'}
+                        </Button>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {filesLoading ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      Loading files...
+                    </div>
+                  ) : files?.length > 0 ? (
+                    files.map((file: any) => (
+                      <div
+                        key={file.id}
+                        className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50 transition-colors"
+                        data-testid={`file-${file.id}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate" data-testid={`file-name-${file.id}`}>
+                            {file.fileName}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Badge variant="outline" className="text-xs">
+                              {file.fileType}
+                            </Badge>
+                            <span>by {file.uploader?.firstName}</span>
+                            {file.downloadCount > 0 && (
+                              <span>• {file.downloadCount} downloads</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              window.open(file.fileUrl, '_blank');
+                              // Update download count
+                              apiRequest('POST', `/api/files/${file.id}/download`);
+                            }}
+                            data-testid={`download-file-${file.id}`}
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </Button>
+                          {file.uploadedBy === user.id && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleFileDelete(file.id)}
+                              disabled={deleteFileMutation.isPending}
+                              data-testid={`delete-file-${file.id}`}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No files shared yet</p>
+                      <p className="text-xs">Upload study materials to get started</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Quick Actions */}
             <Card className="glassmorphism bg-card/50 dark:bg-card/50 backdrop-blur-lg border border-border/50">
               <CardHeader>
@@ -204,9 +529,20 @@ export default function PodDetail() {
                     <Calendar className="w-4 h-4 mr-2" />
                     Schedule Session
                   </Button>
-                  <Button variant="outline" className="w-full justify-start" data-testid="share-resources">
-                    <Target className="w-4 h-4 mr-2" />
-                    Share Resources
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start" 
+                    onClick={startVideoCall}
+                    disabled={createVideoCallMutation.isPending || !!activeCall}
+                    data-testid="start-video-call"
+                  >
+                    <Video className="w-4 h-4 mr-2" />
+                    {createVideoCallMutation.isPending 
+                      ? 'Starting Call...' 
+                      : activeCall 
+                        ? 'Call in Progress' 
+                        : 'Start Video Call'
+                    }
                   </Button>
                   <Button variant="outline" className="w-full justify-start" data-testid="view-analytics">
                     <Users className="w-4 h-4 mr-2" />

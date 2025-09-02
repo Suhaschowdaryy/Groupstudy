@@ -8,6 +8,9 @@ import {
   userBadges,
   chatMessages,
   aiInteractions,
+  podFiles,
+  videoCallSessions,
+  videoCallParticipants,
   type User,
   type UpsertUser,
   type RegisterUser,
@@ -29,6 +32,12 @@ import {
   type InsertChatMessage,
   type AiInteraction,
   type InsertAiInteraction,
+  type PodFile,
+  type InsertPodFile,
+  type VideoCallSession,
+  type InsertVideoCallSession,
+  type VideoCallParticipant,
+  type InsertVideoCallParticipant,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc, inArray, sql, count } from "drizzle-orm";
@@ -72,6 +81,21 @@ export interface IStorage {
   // AI operations
   createAiInteraction(interaction: InsertAiInteraction): Promise<AiInteraction>;
   getUserAiHistory(userId: string, limit?: number): Promise<AiInteraction[]>;
+  
+  // File operations
+  uploadFile(file: InsertPodFile): Promise<PodFile>;
+  getPodFiles(podId: string): Promise<(PodFile & { uploader: User })[]>;
+  deleteFile(fileId: string, userId: string): Promise<boolean>;
+  updateFileDownloadCount(fileId: string): Promise<void>;
+  
+  // Video call operations
+  createVideoCallSession(session: InsertVideoCallSession): Promise<VideoCallSession>;
+  getVideoCallSessions(podId: string): Promise<VideoCallSession[]>;
+  getActiveVideoCall(podId: string): Promise<VideoCallSession | undefined>;
+  joinVideoCall(participation: InsertVideoCallParticipant): Promise<VideoCallParticipant>;
+  leaveVideoCall(sessionId: string, userId: string): Promise<void>;
+  updateVideoCallStatus(sessionId: string, isActive: boolean): Promise<VideoCallSession>;
+  getVideoCallParticipants(sessionId: string): Promise<(VideoCallParticipant & { user: User })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -356,6 +380,149 @@ export class DatabaseStorage implements IStorage {
       .where(eq(aiInteractions.userId, userId))
       .orderBy(desc(aiInteractions.createdAt))
       .limit(limit);
+  }
+
+  // File operations
+  async uploadFile(fileData: InsertPodFile): Promise<PodFile> {
+    const [file] = await db
+      .insert(podFiles)
+      .values(fileData)
+      .returning();
+    return file;
+  }
+
+  async getPodFiles(podId: string): Promise<(PodFile & { uploader: User })[]> {
+    const results = await db
+      .select()
+      .from(podFiles)
+      .innerJoin(users, eq(podFiles.uploadedBy, users.id))
+      .where(eq(podFiles.podId, podId))
+      .orderBy(desc(podFiles.createdAt));
+    
+    return results.map(result => ({
+      ...result.pod_files,
+      uploader: result.users
+    }));
+  }
+
+  async deleteFile(fileId: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(podFiles)
+      .where(and(
+        eq(podFiles.id, fileId),
+        eq(podFiles.uploadedBy, userId)
+      ))
+      .returning();
+    return result.length > 0;
+  }
+
+  async updateFileDownloadCount(fileId: string): Promise<void> {
+    await db
+      .update(podFiles)
+      .set({
+        downloadCount: sql`${podFiles.downloadCount} + 1`
+      })
+      .where(eq(podFiles.id, fileId));
+  }
+
+  // Video call operations
+  async createVideoCallSession(sessionData: InsertVideoCallSession): Promise<VideoCallSession> {
+    const [session] = await db
+      .insert(videoCallSessions)
+      .values(sessionData)
+      .returning();
+    return session;
+  }
+
+  async getVideoCallSessions(podId: string): Promise<VideoCallSession[]> {
+    return await db
+      .select()
+      .from(videoCallSessions)
+      .where(eq(videoCallSessions.podId, podId))
+      .orderBy(desc(videoCallSessions.createdAt));
+  }
+
+  async getActiveVideoCall(podId: string): Promise<VideoCallSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(videoCallSessions)
+      .where(and(
+        eq(videoCallSessions.podId, podId),
+        eq(videoCallSessions.isActive, true)
+      ))
+      .limit(1);
+    return session;
+  }
+
+  async joinVideoCall(participationData: InsertVideoCallParticipant): Promise<VideoCallParticipant> {
+    const [participation] = await db
+      .insert(videoCallParticipants)
+      .values(participationData)
+      .returning();
+      
+    // Update participant count
+    await db
+      .update(videoCallSessions)
+      .set({
+        participantCount: sql`${videoCallSessions.participantCount} + 1`
+      })
+      .where(eq(videoCallSessions.id, participationData.sessionId!));
+      
+    return participation;
+  }
+
+  async leaveVideoCall(sessionId: string, userId: string): Promise<void> {
+    // Update the participant record with leave time
+    await db
+      .update(videoCallParticipants)
+      .set({
+        leftAt: new Date(),
+        duration: sql`EXTRACT(EPOCH FROM (NOW() - ${videoCallParticipants.joinedAt}))/60`
+      })
+      .where(and(
+        eq(videoCallParticipants.sessionId, sessionId),
+        eq(videoCallParticipants.userId, userId),
+        sql`${videoCallParticipants.leftAt} IS NULL`
+      ));
+      
+    // Update participant count
+    await db
+      .update(videoCallSessions)
+      .set({
+        participantCount: sql`${videoCallSessions.participantCount} - 1`
+      })
+      .where(eq(videoCallSessions.id, sessionId));
+  }
+
+  async updateVideoCallStatus(sessionId: string, isActive: boolean): Promise<VideoCallSession> {
+    const updateData: any = { isActive };
+    
+    if (isActive) {
+      updateData.startedAt = new Date();
+    } else {
+      updateData.endedAt = new Date();
+    }
+    
+    const [session] = await db
+      .update(videoCallSessions)
+      .set(updateData)
+      .where(eq(videoCallSessions.id, sessionId))
+      .returning();
+    return session;
+  }
+
+  async getVideoCallParticipants(sessionId: string): Promise<(VideoCallParticipant & { user: User })[]> {
+    const results = await db
+      .select()
+      .from(videoCallParticipants)
+      .innerJoin(users, eq(videoCallParticipants.userId, users.id))
+      .where(eq(videoCallParticipants.sessionId, sessionId))
+      .orderBy(desc(videoCallParticipants.joinedAt));
+    
+    return results.map(result => ({
+      ...result.video_call_participants,
+      user: result.users
+    }));
   }
 }
 

@@ -15,7 +15,10 @@ import {
   insertPodMembershipSchema,
   insertStudySessionSchema,
   insertChatMessageSchema,
-  insertAiInteractionSchema 
+  insertAiInteractionSchema,
+  insertPodFileSchema,
+  insertVideoCallSessionSchema,
+  insertVideoCallParticipantSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -389,6 +392,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching AI history:", error);
       res.status(500).json({ message: "Failed to fetch AI history" });
+    }
+  });
+
+  // File sharing routes
+  app.post('/api/pods/:podId/files', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const podId = req.params.podId;
+      const fileData = insertPodFileSchema.parse({
+        ...req.body,
+        podId,
+        uploadedBy: userId
+      });
+      
+      const file = await storage.uploadFile(fileData);
+      res.status(201).json(file);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      res.status(500).json({ message: "Failed to upload file" });
+    }
+  });
+
+  app.get('/api/pods/:podId/files', async (req, res) => {
+    try {
+      const podId = req.params.podId;
+      const files = await storage.getPodFiles(podId);
+      res.json(files);
+    } catch (error) {
+      console.error("Error fetching files:", error);
+      res.status(500).json({ message: "Failed to fetch files" });
+    }
+  });
+
+  app.delete('/api/files/:fileId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const fileId = req.params.fileId;
+      
+      const success = await storage.deleteFile(fileId, userId);
+      if (success) {
+        res.json({ message: "File deleted successfully" });
+      } else {
+        res.status(404).json({ message: "File not found or unauthorized" });
+      }
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      res.status(500).json({ message: "Failed to delete file" });
+    }
+  });
+
+  app.post('/api/files/:fileId/download', async (req, res) => {
+    try {
+      const fileId = req.params.fileId;
+      await storage.updateFileDownloadCount(fileId);
+      res.json({ message: "Download count updated" });
+    } catch (error) {
+      console.error("Error updating download count:", error);
+      res.status(500).json({ message: "Failed to update download count" });
+    }
+  });
+
+  // Video call routes
+  app.post('/api/pods/:podId/video-calls', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const podId = req.params.podId;
+      const sessionData = insertVideoCallSessionSchema.parse({
+        ...req.body,
+        podId,
+        hostId: userId
+      });
+      
+      const session = await storage.createVideoCallSession(sessionData);
+      res.status(201).json(session);
+    } catch (error) {
+      console.error("Error creating video call session:", error);
+      res.status(500).json({ message: "Failed to create video call session" });
+    }
+  });
+
+  app.get('/api/pods/:podId/video-calls', async (req, res) => {
+    try {
+      const podId = req.params.podId;
+      const sessions = await storage.getVideoCallSessions(podId);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching video call sessions:", error);
+      res.status(500).json({ message: "Failed to fetch video call sessions" });
+    }
+  });
+
+  app.get('/api/pods/:podId/active-call', async (req, res) => {
+    try {
+      const podId = req.params.podId;
+      const activeCall = await storage.getActiveVideoCall(podId);
+      res.json(activeCall);
+    } catch (error) {
+      console.error("Error fetching active video call:", error);
+      res.status(500).json({ message: "Failed to fetch active video call" });
+    }
+  });
+
+  app.post('/api/video-calls/:sessionId/join', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const sessionId = req.params.sessionId;
+      
+      const participation = await storage.joinVideoCall({
+        sessionId,
+        userId
+      });
+      
+      res.status(201).json(participation);
+    } catch (error) {
+      console.error("Error joining video call:", error);
+      res.status(500).json({ message: "Failed to join video call" });
+    }
+  });
+
+  app.post('/api/video-calls/:sessionId/leave', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const sessionId = req.params.sessionId;
+      
+      await storage.leaveVideoCall(sessionId, userId);
+      res.json({ message: "Left video call successfully" });
+    } catch (error) {
+      console.error("Error leaving video call:", error);
+      res.status(500).json({ message: "Failed to leave video call" });
+    }
+  });
+
+  app.put('/api/video-calls/:sessionId/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const sessionId = req.params.sessionId;
+      const { isActive } = req.body;
+      
+      const session = await storage.updateVideoCallStatus(sessionId, isActive);
+      res.json(session);
+    } catch (error) {
+      console.error("Error updating video call status:", error);
+      res.status(500).json({ message: "Failed to update video call status" });
+    }
+  });
+
+  app.get('/api/video-calls/:sessionId/participants', async (req, res) => {
+    try {
+      const sessionId = req.params.sessionId;
+      const participants = await storage.getVideoCallParticipants(sessionId);
+      res.json(participants);
+    } catch (error) {
+      console.error("Error fetching video call participants:", error);
+      res.status(500).json({ message: "Failed to fetch video call participants" });
     }
   });
 

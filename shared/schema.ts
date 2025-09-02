@@ -34,6 +34,8 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  linkedInId: varchar("linkedin_id"), // LinkedIn profile URL or username
+  githubId: varchar("github_id"), // GitHub username
   role: varchar("role").default("student"), // student, admin
   studyGoals: text("study_goals").array(),
   preferredSubjects: text("preferred_subjects").array(),
@@ -134,6 +136,46 @@ export const aiInteractions = pgTable("ai_interactions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const podFiles = pgTable("pod_files", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  podId: varchar("pod_id").references(() => studyPods.id),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  fileName: varchar("file_name").notNull(),
+  fileType: varchar("file_type").notNull(), // pdf, doc, txt, image, etc.
+  fileSize: integer("file_size"), // in bytes
+  fileUrl: varchar("file_url").notNull(), // storage URL
+  description: text("description"),
+  isPublic: boolean("is_public").default(true), // visible to all pod members
+  downloadCount: integer("download_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const videoCallSessions = pgTable("video_call_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  podId: varchar("pod_id").references(() => studyPods.id),
+  hostId: varchar("host_id").references(() => users.id),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  meetingUrl: varchar("meeting_url"), // external video call URL (Jitsi, Zoom, etc.)
+  isActive: boolean("is_active").default(false),
+  scheduledAt: timestamp("scheduled_at"),
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
+  participantCount: integer("participant_count").default(0),
+  maxParticipants: integer("max_participants").default(8),
+  recordingUrl: varchar("recording_url"), // if call is recorded
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const videoCallParticipants = pgTable("video_call_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => videoCallSessions.id),
+  userId: varchar("user_id").references(() => users.id),
+  joinedAt: timestamp("joined_at").defaultNow(),
+  leftAt: timestamp("left_at"),
+  duration: integer("duration"), // in minutes
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   createdPods: many(studyPods),
@@ -142,6 +184,9 @@ export const usersRelations = relations(users, ({ many }) => ({
   userBadges: many(userBadges),
   chatMessages: many(chatMessages),
   aiInteractions: many(aiInteractions),
+  uploadedFiles: many(podFiles),
+  hostedVideoCalls: many(videoCallSessions),
+  videoCallParticipation: many(videoCallParticipants),
 }));
 
 export const studyPodsRelations = relations(studyPods, ({ one, many }) => ({
@@ -152,6 +197,8 @@ export const studyPodsRelations = relations(studyPods, ({ one, many }) => ({
   memberships: many(podMemberships),
   sessions: many(studySessions),
   chatMessages: many(chatMessages),
+  files: many(podFiles),
+  videoCallSessions: many(videoCallSessions),
 }));
 
 export const podMembershipsRelations = relations(podMemberships, ({ one }) => ({
@@ -213,6 +260,40 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
 export const aiInteractionsRelations = relations(aiInteractions, ({ one }) => ({
   user: one(users, {
     fields: [aiInteractions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const podFilesRelations = relations(podFiles, ({ one }) => ({
+  pod: one(studyPods, {
+    fields: [podFiles.podId],
+    references: [studyPods.id],
+  }),
+  uploader: one(users, {
+    fields: [podFiles.uploadedBy],
+    references: [users.id],
+  }),
+}));
+
+export const videoCallSessionsRelations = relations(videoCallSessions, ({ one, many }) => ({
+  pod: one(studyPods, {
+    fields: [videoCallSessions.podId],
+    references: [studyPods.id],
+  }),
+  host: one(users, {
+    fields: [videoCallSessions.hostId],
+    references: [users.id],
+  }),
+  participants: many(videoCallParticipants),
+}));
+
+export const videoCallParticipantsRelations = relations(videoCallParticipants, ({ one }) => ({
+  session: one(videoCallSessions, {
+    fields: [videoCallParticipants.sessionId],
+    references: [videoCallSessions.id],
+  }),
+  user: one(users, {
+    fields: [videoCallParticipants.userId],
     references: [users.id],
   }),
 }));
@@ -295,6 +376,26 @@ export const insertAiInteractionSchema = createInsertSchema(aiInteractions).omit
   createdAt: true,
 });
 
+export const insertPodFileSchema = createInsertSchema(podFiles).omit({
+  id: true,
+  createdAt: true,
+  downloadCount: true,
+});
+
+export const insertVideoCallSessionSchema = createInsertSchema(videoCallSessions).omit({
+  id: true,
+  createdAt: true,
+  participantCount: true,
+  isActive: true,
+  startedAt: true,
+  endedAt: true,
+});
+
+export const insertVideoCallParticipantSchema = createInsertSchema(videoCallParticipants).omit({
+  id: true,
+  joinedAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -317,3 +418,9 @@ export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
 export type InsertAiInteraction = z.infer<typeof insertAiInteractionSchema>;
 export type AiInteraction = typeof aiInteractions.$inferSelect;
+export type InsertPodFile = z.infer<typeof insertPodFileSchema>;
+export type PodFile = typeof podFiles.$inferSelect;
+export type InsertVideoCallSession = z.infer<typeof insertVideoCallSessionSchema>;
+export type VideoCallSession = typeof videoCallSessions.$inferSelect;
+export type InsertVideoCallParticipant = z.infer<typeof insertVideoCallParticipantSchema>;
+export type VideoCallParticipant = typeof videoCallParticipants.$inferSelect;
