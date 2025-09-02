@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { isUnauthorizedError } from '@/lib/authUtils';
-import { Bot, Send, User, Sparkles, Clock, BookOpen } from 'lucide-react';
+import { Bot, Send, User, Sparkles, Clock, BookOpen, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ChatMessage {
@@ -365,7 +365,7 @@ export default function AIChat() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {aiHistory?.slice(0, 5).map((interaction: any, index: number) => (
+                  {(aiHistory as any[])?.slice(0, 5).map((interaction: any, index: number) => (
                     <div 
                       key={interaction.id}
                       className="p-3 glassmorphism rounded-lg cursor-pointer hover:bg-muted/30 transition-colors bg-card/20 dark:bg-card/20 backdrop-blur-lg border border-border/20"
