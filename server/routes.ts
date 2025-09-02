@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
 import { 
@@ -18,6 +19,9 @@ import {
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Create HTTP server first
+  const httpServer = createServer(app);
+  
   // Auth middleware
   setupAuth(app);
 
@@ -275,6 +279,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const message = await storage.createMessage(messageData);
+      
+      // Get user info for the message
+      const user = await storage.getUser(userId);
+      
+      // Broadcast the new message to all connected clients in this pod
+      const broadcastMessage = {
+        type: 'new_message',
+        message: {
+          ...message,
+          user: user
+        }
+      };
+      
+      (httpServer as any).broadcastToPod(podId, broadcastMessage);
+      
       res.status(201).json(message);
     } catch (error) {
       console.error("Error creating message:", error);
@@ -373,6 +392,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
+  // WebSocket server for real-time chat
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Store connected clients by pod ID
+  const podConnections = new Map<string, Set<WebSocket & { userId?: string; podId?: string }>>();
+  
+  wss.on('connection', (ws: WebSocket & { userId?: string; podId?: string }, req) => {
+    console.log('WebSocket connection established');
+    
+    ws.on('message', async (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        
+        switch (message.type) {
+          case 'join_pod':
+            ws.userId = message.userId;
+            ws.podId = message.podId;
+            
+            // Add to pod connections
+            if (!podConnections.has(message.podId)) {
+              podConnections.set(message.podId, new Set());
+            }
+            podConnections.get(message.podId)!.add(ws);
+            
+            // Notify other users that someone joined
+            const joinNotification = {
+              type: 'user_joined',
+              userId: message.userId,
+              podId: message.podId,
+              timestamp: new Date().toISOString()
+            };
+            
+            podConnections.get(message.podId)!.forEach(client => {
+              if (client !== ws && client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(joinNotification));
+              }
+            });
+            break;
+            
+          case 'send_message':
+            // This will be handled by the HTTP API endpoint
+            // The WebSocket is just for receiving real-time updates
+            break;
+        }
+      } catch (error) {
+        console.error('Error processing WebSocket message:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      // Remove from pod connections
+      if (ws.podId && podConnections.has(ws.podId)) {
+        podConnections.get(ws.podId)!.delete(ws);
+        
+        // Notify other users that someone left
+        if (ws.userId) {
+          const leaveNotification = {
+            type: 'user_left',
+            userId: ws.userId,
+            podId: ws.podId,
+            timestamp: new Date().toISOString()
+          };
+          
+          podConnections.get(ws.podId)!.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify(leaveNotification));
+            }
+          });
+        }
+        
+        // Clean up empty pod connections
+        if (podConnections.get(ws.podId)!.size === 0) {
+          podConnections.delete(ws.podId);
+        }
+      }
+    });
+  });
+  
+  // Function to broadcast message to pod members
+  function broadcastToPod(podId: string, message: any) {
+    if (podConnections.has(podId)) {
+      podConnections.get(podId)!.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(message));
+        }
+      });
+    }
+  }
+  
+  // Store the broadcast function on the server for use in routes
+  (httpServer as any).broadcastToPod = broadcastToPod;
+  
   return httpServer;
 }

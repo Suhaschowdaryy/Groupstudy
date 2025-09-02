@@ -1,26 +1,19 @@
 import { useAuth } from '@/hooks/useAuth';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { useQuery } from '@tanstack/react-query';
 import { Navigation } from '@/components/Navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { isUnauthorizedError } from '@/lib/authUtils';
 import { useParams } from 'wouter';
-import { Users, MessageCircle, Calendar, Clock, Target, Send, Video, Settings } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Users, Calendar, Clock, Target, Video, Settings } from 'lucide-react';
+import ChatRoom from '@/components/ChatRoom';
 
 export default function PodDetail() {
   const { id: podId } = useParams();
   const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [messageInput, setMessageInput] = useState('');
-
   const { data: pod, isLoading: podLoading } = useQuery({
     queryKey: ['/api/pods', podId],
     enabled: !!podId && !!user,
@@ -30,46 +23,6 @@ export default function PodDetail() {
     queryKey: ['/api/pods', podId, 'members'],
     enabled: !!podId && !!user,
   });
-
-  const { data: messages } = useQuery({
-    queryKey: ['/api/pods', podId, 'messages'],
-    enabled: !!podId && !!user,
-  });
-
-  const sendMessageMutation = useMutation({
-    mutationFn: async (content: string) => {
-      return apiRequest('POST', `/api/pods/${podId}/messages`, { content });
-    },
-    onSuccess: () => {
-      setMessageInput('');
-      queryClient.invalidateQueries({ queryKey: ['/api/pods', podId, 'messages'] });
-    },
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send message",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (messageInput.trim()) {
-      sendMessageMutation.mutate(messageInput.trim());
-    }
-  };
 
   if (!user) return null;
 
@@ -160,78 +113,9 @@ export default function PodDetail() {
         </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Chat Section */}
-          <div className="lg:col-span-2">
-            <Card className="glassmorphism h-[600px] flex flex-col bg-card/50 dark:bg-card/50 backdrop-blur-lg border border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageCircle className="text-primary w-5 h-5" />
-                  Group Chat
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col p-0">
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4" data-testid="chat-messages">
-                  {messages?.length === 0 ? (
-                    <div className="text-center py-12">
-                      <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">No messages yet. Start the conversation!</p>
-                    </div>
-                  ) : (
-                    messages?.map((message: any, index: number) => (
-                      <motion.div
-                        key={message.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="flex items-start space-x-3"
-                        data-testid={`message-${message.id}`}
-                      >
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white text-xs">
-                            {message.user?.firstName?.[0] || 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-sm" data-testid={`message-author-${message.id}`}>
-                              {message.user?.firstName || 'Unknown'}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(message.createdAt).toLocaleTimeString()}
-                            </span>
-                          </div>
-                          <p className="text-sm" data-testid={`message-content-${message.id}`}>
-                            {message.content}
-                          </p>
-                        </div>
-                      </motion.div>
-                    ))
-                  )}
-                </div>
-                
-                <Separator />
-                
-                {/* Message Input */}
-                <form onSubmit={handleSendMessage} className="p-4">
-                  <div className="flex gap-2">
-                    <Input
-                      value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
-                      placeholder="Type your message..."
-                      data-testid="message-input"
-                    />
-                    <Button 
-                      type="submit" 
-                      disabled={!messageInput.trim() || sendMessageMutation.isPending}
-                      data-testid="send-message-button"
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
+          {/* Real-time Chat */}
+          <div className="lg:col-span-2 h-[600px]">
+            <ChatRoom podId={podId!} podName={pod?.name} />
           </div>
 
           {/* Sidebar */}
