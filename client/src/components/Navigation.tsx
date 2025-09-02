@@ -37,14 +37,14 @@ export function Navigation() {
           <div className="hidden md:flex items-center space-x-6">
             {navItems.map((item) => (
               <Link key={item.href} href={item.href}>
-                <a
+                <span
                   data-testid={item.testId}
-                  className={`text-muted-foreground hover:text-primary transition-colors ${
+                  className={`text-muted-foreground hover:text-primary transition-colors cursor-pointer ${
                     location === item.href ? 'text-primary font-medium' : ''
                   }`}
                 >
                   {item.label}
-                </a>
+                </span>
               </Link>
             ))}
           </div>
