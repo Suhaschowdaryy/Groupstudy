@@ -1,6 +1,9 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
+// ✅ Backend base URL from environment
+const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? "";
+
+// Throw if response not OK
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -8,6 +11,7 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// ✅ Main API request function
 export async function apiRequest(
   method: string,
   url: string,
@@ -24,15 +28,17 @@ export async function apiRequest(
   return res;
 }
 
+// ✅ Query function for react-query
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(`${API_BASE_URL}${queryKey.join("/")}`, {
-  credentials: "include",
-});
+    const url = queryKey.join("/") as string;
+    const res = await fetch(`${API_BASE_URL}${url}`, {
+      credentials: "include",
+    });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
@@ -42,6 +48,7 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+// ✅ QueryClient setup
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
