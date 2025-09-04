@@ -90,7 +90,7 @@ export function setupAuth(app: Express) {
         {
           clientID: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          callbackURL: callbackURL: "https://groupstudy-backend.onrender.com/api/auth/google/callback",
+          callbackURL: "https://groupstudy-backend.onrender.com/api/auth/google/callback",
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
