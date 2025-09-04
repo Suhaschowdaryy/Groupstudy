@@ -20,7 +20,7 @@ import ChatRoom from '@/components/ChatRoom';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { insertStudyPodSchema, type StudyPod } from '../../../shared/schema';
+import { insertStudyPodSchema, type StudyPod, type VideoCallSession, type PodFile } from '../../../shared/schema';
 import { z } from 'zod';
 
 export default function PodDetail() {
@@ -71,17 +71,17 @@ export default function PodDetail() {
     } : undefined
   });
 
-  const { data: members } = useQuery({
+  const { data: members } = useQuery<any[]>({
     queryKey: ['/api/pods', podId, 'members'],
     enabled: !!podId && !!user,
   });
 
-  const { data: files, isLoading: filesLoading } = useQuery({
+  const { data: files, isLoading: filesLoading } = useQuery<PodFile[]>({
     queryKey: ['/api/pods', podId, 'files'],
     enabled: !!podId && !!user,
   });
 
-  const { data: activeCall } = useQuery({
+  const { data: activeCall } = useQuery<VideoCallSession | null>({
     queryKey: ['/api/pods', podId, 'active-call'],
     enabled: !!podId && !!user,
     refetchInterval: 5000, // Check every 5 seconds
@@ -382,7 +382,7 @@ export default function PodDetail() {
                             <FormItem>
                               <FormLabel>Description</FormLabel>
                               <FormControl>
-                                <Textarea {...field} data-testid="settings-pod-description" />
+                                <Textarea {...field} value={field.value || ''} data-testid="settings-pod-description" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -396,7 +396,7 @@ export default function PodDetail() {
                             <FormItem>
                               <FormLabel>Subject</FormLabel>
                               <FormControl>
-                                <Select onValueChange={field.onChange} value={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value || ''}>
                                   <SelectTrigger data-testid="settings-subject">
                                     <SelectValue placeholder="Select subject" />
                                   </SelectTrigger>
@@ -427,7 +427,7 @@ export default function PodDetail() {
                             <FormItem>
                               <FormLabel>Learning Pace</FormLabel>
                               <FormControl>
-                                <Select onValueChange={field.onChange} value={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value || ''}>
                                   <SelectTrigger data-testid="settings-learning-pace">
                                     <SelectValue placeholder="Select pace" />
                                   </SelectTrigger>
@@ -455,6 +455,7 @@ export default function PodDetail() {
                                   min="2" 
                                   max="20" 
                                   {...field}
+                                  value={field.value || 8}
                                   onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
                                   data-testid="settings-max-members"
                                 />
@@ -471,7 +472,7 @@ export default function PodDetail() {
                             <FormItem>
                               <FormLabel>Study Goal</FormLabel>
                               <FormControl>
-                                <Textarea {...field} data-testid="settings-pod-goal" />
+                                <Textarea {...field} value={field.value || ''} data-testid="settings-pod-goal" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -575,15 +576,15 @@ export default function PodDetail() {
                   <div className="flex items-center text-muted-foreground">
                     <Clock className="w-4 h-4 mr-2" />
                     <span data-testid="pod-schedule">
-                      {pod.schedule?.days?.map((day: string) => day.charAt(0).toUpperCase() + day.slice(1)).join(', ') || 'Flexible'}
+                      {(pod.schedule as any)?.days?.map((day: string) => day.charAt(0).toUpperCase() + day.slice(1)).join(', ') || 'Flexible'}
                     </span>
                   </div>
                   
-                  {pod.schedule?.time && (
+                  {(pod.schedule as any)?.time && (
                     <div className="flex items-center text-muted-foreground">
                       <Clock className="w-4 h-4 mr-2" />
                       <span data-testid="pod-time">
-                        {pod.schedule.time} ({pod.schedule.duration || 120} min)
+                        {(pod.schedule as any).time} ({(pod.schedule as any).duration || 120} min)
                       </span>
                     </div>
                   )}
@@ -678,8 +679,8 @@ export default function PodDetail() {
                     <div className="text-center py-4 text-muted-foreground">
                       Loading files...
                     </div>
-                  ) : files?.length > 0 ? (
-                    files.map((file: any) => (
+                  ) : (files?.length ?? 0) > 0 ? (
+                    files?.map((file: any) => (
                       <div
                         key={file.id}
                         className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50 transition-colors"

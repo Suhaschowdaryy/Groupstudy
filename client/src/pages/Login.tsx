@@ -25,6 +25,22 @@ export default function Login() {
     },
   });
 
+  // Check for OAuth errors in URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    
+    if (error === 'google_auth_failed') {
+      toast({
+        title: "Google Sign-In Failed",
+        description: "There was an issue signing in with Google. Please try again or use email/password login.",
+        variant: "destructive",
+      });
+      // Clear the error parameter from URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [toast]);
+
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
