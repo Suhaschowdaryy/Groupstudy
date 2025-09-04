@@ -9,11 +9,13 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import Home from "@/pages/Home";
 import Profile from "@/pages/Profile";
+import Progress from "@/pages/Progress";
 import Discover from "@/pages/Discover";
 import MyPods from "@/pages/MyPods";
 import CreatePod from "@/pages/CreatePod";
 import PodDetail from "@/pages/PodDetail";
 import AIChat from "@/pages/AIChat";
+import Games from "@/pages/Games";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import AIMatchingLanding from "@/pages/AIMatchingLanding";
@@ -44,11 +46,13 @@ function Router() {
         <>
           <Route path="/" component={Home} />
           <Route path="/profile" component={Profile} />
+          <Route path="/progress" component={Progress} />
           <Route path="/discover" component={Discover} />
           <Route path="/my-pods" component={MyPods} />
           <Route path="/create-pod" component={CreatePod} />
           <Route path="/pod/:id" component={PodDetail} />
           <Route path="/ai-chat" component={AIChat} />
+          <Route path="/games" component={Games} />
         </>
       )}
       <Route component={NotFound} />

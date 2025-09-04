@@ -14,7 +14,8 @@ export function Navigation() {
     { to: '/', label: 'Dashboard', testId: 'nav-dashboard' },
     { to: '/my-pods', label: 'My Pods', testId: 'nav-my-pods' },
     { to: '/discover', label: 'Discover', testId: 'nav-discover' },
-    { to: '/profile', label: 'Progress', testId: 'nav-progress' },
+    { to: '/progress', label: 'Progress', testId: 'nav-progress' },
+    { to: '/games', label: 'Mini Games', testId: 'nav-games' },
   ];
 
   return (

@@ -5,6 +5,8 @@ import { MyActivePods } from '@/components/MyActivePods';
 import { SidebarWidgets } from '@/components/SidebarWidgets';
 import { UpcomingSessions } from '@/components/UpcomingSessions';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
+import { StudyTimer } from '@/components/StudyTimer';
+import { QuickActions } from '@/components/QuickActions';
 
 export default function Home() {
   return (
@@ -17,7 +19,11 @@ export default function Home() {
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <MyActivePods />
-          <SidebarWidgets />
+          <div className="space-y-6">
+            <SidebarWidgets />
+            <StudyTimer />
+            <QuickActions />
+          </div>
         </div>
         
         <UpcomingSessions />

@@ -36,6 +36,7 @@ export default function PodDetail() {
     fileUrl: '',
     description: '',
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   // Settings form schema - exclude fields that shouldn't be editable
   const settingsSchema = insertStudyPodSchema.pick({
@@ -100,6 +101,7 @@ export default function PodDetail() {
       queryClient.invalidateQueries({ queryKey: ['/api/pods', podId, 'files'] });
       setIsFileDialogOpen(false);
       setFileFormData({ fileName: '', fileType: '', fileUrl: '', description: '' });
+      setSelectedFile(null);
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -142,7 +144,91 @@ export default function PodDetail() {
 
   const handleFileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    uploadFileMutation.mutate(fileFormData);
+    
+    if (selectedFile) {
+      // Handle actual file upload
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('description', fileFormData.description);
+      
+      // Upload to a file hosting service or handle differently
+      // For now, we'll create a mock URL and use the current system
+      const mockUrl = `${window.location.origin}/uploads/${selectedFile.name}`;
+      
+      const uploadData = {
+        fileName: selectedFile.name,
+        fileType: getFileCategory(selectedFile.type, selectedFile.name),
+        fileUrl: mockUrl,
+        description: fileFormData.description,
+      };
+      
+      uploadFileMutation.mutate(uploadData);
+    } else {
+      // Handle URL-based upload
+      uploadFileMutation.mutate(fileFormData);
+    }
+  };
+
+  const getFileCategory = (mimeType: string, fileName: string): string => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    
+    // Image files
+    if (mimeType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(extension || '')) {
+      return 'image';
+    }
+    
+    // PDF files
+    if (mimeType === 'application/pdf' || extension === 'pdf') {
+      return 'pdf';
+    }
+    
+    // Document files
+    if (['doc', 'docx', 'txt', 'rtf', 'odt'].includes(extension || '') || 
+        mimeType.includes('document') || mimeType.includes('text')) {
+      return 'document';
+    }
+    
+    // Presentation files
+    if (['ppt', 'pptx', 'odp'].includes(extension || '') || 
+        mimeType.includes('presentation')) {
+      return 'presentation';
+    }
+    
+    // Spreadsheet files
+    if (['xls', 'xlsx', 'csv', 'ods'].includes(extension || '') || 
+        mimeType.includes('spreadsheet')) {
+      return 'spreadsheet';
+    }
+    
+    // Video files
+    if (mimeType.startsWith('video/') || ['mp4', 'avi', 'mov', 'wmv', 'flv'].includes(extension || '')) {
+      return 'video';
+    }
+    
+    // Audio files
+    if (mimeType.startsWith('audio/') || ['mp3', 'wav', 'flac', 'aac'].includes(extension || '')) {
+      return 'audio';
+    }
+    
+    // Archive files
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(extension || '')) {
+      return 'archive';
+    }
+    
+    return 'other';
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setFileFormData(prev => ({
+        ...prev,
+        fileName: file.name,
+        fileType: getFileCategory(file.type, file.name),
+        fileUrl: '' // Clear URL when file is selected
+      }));
+    }
   };
 
   const handleFileDelete = (fileId: string) => {
@@ -194,14 +280,9 @@ export default function PodDetail() {
     onSuccess: (newCall: any) => {
       toast({
         title: "Success",
-        description: "Video call started! Opening meeting...",
+        description: "Video call started and meeting opened!",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/pods', podId, 'active-call'] });
-      
-      // Auto-join the call
-      if (newCall.meetingUrl) {
-        window.open(newCall.meetingUrl, '_blank');
-      }
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -245,6 +326,18 @@ export default function PodDetail() {
     // Generate a Jitsi Meet URL for the pod
     const meetingId = `studypod-${podId}-${Date.now()}`;
     const jitsiUrl = `https://meet.jit.si/${meetingId}`;
+    
+    // Open the meeting immediately to avoid popup blockers
+    const meetingWindow = window.open(jitsiUrl, '_blank', 'noopener,noreferrer');
+    
+    if (!meetingWindow) {
+      toast({
+        title: "Popup Blocked",
+        description: "Please allow popups for this site to open video calls",
+        variant: "destructive",
+      });
+      return;
+    }
     
     const callData = {
       title: `${pod?.name} Study Session`,
@@ -616,40 +709,77 @@ export default function PodDetail() {
                         <DialogTitle>Upload File</DialogTitle>
                       </DialogHeader>
                       <form onSubmit={handleFileSubmit} className="space-y-4">
-                        <div>
-                          <Label htmlFor="fileName">File Name</Label>
-                          <Input
-                            id="fileName"
-                            value={fileFormData.fileName}
-                            onChange={(e) => setFileFormData(prev => ({ ...prev, fileName: e.target.value }))}
-                            placeholder="Enter file name"
-                            required
-                            data-testid="file-name-input"
+                        <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                          <input
+                            type="file"
+                            id="fileInput"
+                            onChange={handleFileSelect}
+                            className="hidden"
+                            accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif,.ppt,.pptx,.xls,.xlsx,.csv,.mp4,.mp3,.zip"
                           />
+                          <label htmlFor="fileInput" className="cursor-pointer">
+                            <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground mb-2">
+                              {selectedFile ? selectedFile.name : 'Click to upload a file from your computer'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Supports: PDF, Documents, Images, Presentations, Spreadsheets, Media files
+                            </p>
+                          </label>
                         </div>
-                        <div>
-                          <Label htmlFor="fileType">File Type</Label>
-                          <Input
-                            id="fileType"
-                            value={fileFormData.fileType}
-                            onChange={(e) => setFileFormData(prev => ({ ...prev, fileType: e.target.value }))}
-                            placeholder="pdf, doc, txt, image, etc."
-                            required
-                            data-testid="file-type-input"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="fileUrl">File URL</Label>
-                          <Input
-                            id="fileUrl"
-                            value={fileFormData.fileUrl}
-                            onChange={(e) => setFileFormData(prev => ({ ...prev, fileUrl: e.target.value }))}
-                            placeholder="https://example.com/file.pdf"
-                            type="url"
-                            required
-                            data-testid="file-url-input"
-                          />
-                        </div>
+                        
+                        {selectedFile && (
+                          <div className="p-3 bg-muted rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-primary" />
+                              <span className="font-medium">{selectedFile.name}</span>
+                              <Badge variant="outline">{getFileCategory(selectedFile.type, selectedFile.name)}</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Size: {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        )}
+                        
+                        {!selectedFile && (
+                          <>
+                            <div className="text-center">
+                              <span className="text-sm text-muted-foreground">Or provide a file URL</span>
+                            </div>
+                            <div>
+                              <Label htmlFor="fileUrl">File URL</Label>
+                              <Input
+                                id="fileUrl"
+                                value={fileFormData.fileUrl}
+                                onChange={(e) => setFileFormData(prev => ({ ...prev, fileUrl: e.target.value }))}
+                                placeholder="https://example.com/file.pdf"
+                                type="url"
+                                data-testid="file-url-input"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="fileName">File Name</Label>
+                              <Input
+                                id="fileName"
+                                value={fileFormData.fileName}
+                                onChange={(e) => setFileFormData(prev => ({ ...prev, fileName: e.target.value }))}
+                                placeholder="Enter file name"
+                                data-testid="file-name-input"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="fileType">File Type</Label>
+                              <Input
+                                id="fileType"
+                                value={fileFormData.fileType}
+                                onChange={(e) => setFileFormData(prev => ({ ...prev, fileType: e.target.value }))}
+                                placeholder="pdf, image, document, etc."
+                                data-testid="file-type-input"
+                              />
+                            </div>
+                          </>
+                        )}
+                        
                         <div>
                           <Label htmlFor="description">Description (Optional)</Label>
                           <Textarea
