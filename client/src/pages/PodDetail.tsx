@@ -151,14 +151,13 @@ export default function PodDetail() {
       formData.append('file', selectedFile);
       formData.append('description', fileFormData.description);
       
-      // Upload to a file hosting service or handle differently
-      // For now, we'll create a mock URL and use the current system
-      const mockUrl = `${window.location.origin}/uploads/${selectedFile.name}`;
+      // Generate a temporary URL for the uploaded file
+      const fileUrl = URL.createObjectURL(selectedFile);
       
       const uploadData = {
         fileName: selectedFile.name,
         fileType: getFileCategory(selectedFile.type, selectedFile.name),
-        fileUrl: mockUrl,
+        fileUrl: fileUrl,
         description: fileFormData.description,
       };
       

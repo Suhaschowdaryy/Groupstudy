@@ -27,14 +27,7 @@ export default function AIChat() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      content: "Hello! I'm your AI study assistant. I can help you with academic questions, create study plans, and provide learning recommendations. What would you like to work on today?",
-      isAI: true,
-      timestamp: new Date(),
-    }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   const [inputMessage, setInputMessage] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');

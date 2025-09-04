@@ -11,38 +11,27 @@ import { motion } from 'framer-motion';
 export default function ProgressPage() {
   const { user } = useAuth();
 
-  // Mock data for charts - in real app, this would come from API
-  const weeklyData = [
-    { day: 'Mon', hours: 2.5, sessions: 2 },
-    { day: 'Tue', hours: 3.2, sessions: 3 },
-    { day: 'Wed', hours: 1.8, sessions: 1 },
-    { day: 'Thu', hours: 4.1, sessions: 3 },
-    { day: 'Fri', hours: 2.9, sessions: 2 },
-    { day: 'Sat', hours: 3.5, sessions: 2 },
-    { day: 'Sun', hours: 2.2, sessions: 1 }
-  ];
+  // Fetch real progress data
+  const { data: progressData } = useQuery({
+    queryKey: ['/api/user-progress'],
+    queryFn: () => fetch('/api/user-progress').then(res => res.json())
+  });
 
-  const monthlyData = [
-    { month: 'Jan', hours: 45 },
-    { month: 'Feb', hours: 52 },
-    { month: 'Mar', hours: 48 },
-    { month: 'Apr', hours: 61 },
-    { month: 'May', hours: 55 },
-    { month: 'Jun', hours: 67 }
-  ];
+  const { data: userStats } = useQuery({
+    queryKey: ['/api/user-stats'],
+    queryFn: () => fetch('/api/user-stats').then(res => res.json())
+  });
 
-  const subjectData = [
-    { name: 'Mathematics', hours: 25, color: '#3b82f6' },
-    { name: 'Physics', hours: 18, color: '#10b981' },
-    { name: 'Chemistry', hours: 15, color: '#f59e0b' },
-    { name: 'Computer Science', hours: 22, color: '#ef4444' }
-  ];
+  // Default to empty arrays if no data
+  const weeklyData = progressData?.weekly || [];
+  const monthlyData = progressData?.monthly || [];
+  const subjectData = progressData?.subjects || [];
 
   const achievements = [
-    { name: 'Study Streak', value: '15 days', icon: Zap, color: 'text-yellow-500' },
-    { name: 'Total Hours', value: '124h', icon: Clock, color: 'text-blue-500' },
-    { name: 'Pods Joined', value: '8', icon: Users, color: 'text-green-500' },
-    { name: 'Rank', value: '#42', icon: Award, color: 'text-purple-500' }
+    { name: 'Study Streak', value: `${userStats?.streak || 0} days`, icon: Zap, color: 'text-yellow-500' },
+    { name: 'Total Hours', value: `${userStats?.totalHours || 0}h`, icon: Clock, color: 'text-blue-500' },
+    { name: 'Pods Joined', value: `${userStats?.podsCount || 0}`, icon: Users, color: 'text-green-500' },
+    { name: 'Rank', value: userStats?.rank ? `#${userStats.rank}` : 'Unranked', icon: Award, color: 'text-purple-500' }
   ];
 
   if (!user) return null;
@@ -169,7 +158,7 @@ export default function ProgressPage() {
                       dataKey="hours"
                       label={({ name, value }) => `${name}: ${value}h`}
                     >
-                      {subjectData.map((entry, index) => (
+                      {subjectData.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -178,14 +167,14 @@ export default function ProgressPage() {
                 </ResponsiveContainer>
                 
                 <div className="space-y-4">
-                  {subjectData.map((subject) => (
+                  {subjectData.map((subject: any) => (
                     <div key={subject.name} className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="font-medium">{subject.name}</span>
                         <span className="text-sm text-muted-foreground">{subject.hours}h</span>
                       </div>
                       <Progress 
-                        value={(subject.hours / Math.max(...subjectData.map(s => s.hours))) * 100} 
+                        value={(subject.hours / Math.max(...subjectData.map((s: any) => s.hours))) * 100} 
                         className="h-2"
                       />
                     </div>

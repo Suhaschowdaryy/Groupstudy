@@ -20,6 +20,20 @@ export default function Games() {
   const [matchedCards, setMatchedCards] = useState<number[]>([]);
   const [memoryScore, setMemoryScore] = useState(0);
 
+  // Word Scramble State
+  const [currentWord, setCurrentWord] = useState('');
+  const [scrambledWord, setScrambledWord] = useState('');
+  const [userGuess, setUserGuess] = useState('');
+  const [wordScore, setWordScore] = useState(0);
+  const [wordsCompleted, setWordsCompleted] = useState(0);
+
+  // Reaction Time State
+  const [reactionState, setReactionState] = useState<'waiting' | 'ready' | 'go' | 'clicked' | 'too-early'>('waiting');
+  const [reactionStartTime, setReactionStartTime] = useState(0);
+  const [reactionTime, setReactionTime] = useState(0);
+  const [bestReactionTime, setBestReactionTime] = useState(0);
+  const [reactionAttempts, setReactionAttempts] = useState(0);
+
   const games = [
     {
       id: 'math-rush',
@@ -146,6 +160,84 @@ export default function Games() {
     }
   };
 
+  // Word Scramble Functions
+  const words = [
+    'EDUCATION', 'LEARNING', 'KNOWLEDGE', 'STUDENT', 'TEACHER', 'SCIENCE', 'HISTORY', 
+    'MATHEMATICS', 'ENGLISH', 'PHYSICS', 'CHEMISTRY', 'BIOLOGY', 'GEOGRAPHY', 'LITERATURE',
+    'PSYCHOLOGY', 'PHILOSOPHY', 'ECONOMICS', 'SOCIOLOGY', 'TECHNOLOGY', 'COMPUTER'
+  ];
+
+  const scrambleWord = (word: string): string => {
+    const letters = word.split('');
+    for (let i = letters.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [letters[i], letters[j]] = [letters[j], letters[i]];
+    }
+    return letters.join('');
+  };
+
+  const generateWordPuzzle = () => {
+    const word = words[Math.floor(Math.random() * words.length)];
+    setCurrentWord(word);
+    setScrambledWord(scrambleWord(word));
+    setUserGuess('');
+  };
+
+  const checkWordGuess = () => {
+    if (userGuess.toUpperCase() === currentWord) {
+      setWordScore(prev => prev + 10);
+      setWordsCompleted(prev => prev + 1);
+      generateWordPuzzle();
+    }
+  };
+
+  const startWordScramble = () => {
+    setCurrentGame('word-scramble');
+    setWordScore(0);
+    setWordsCompleted(0);
+    generateWordPuzzle();
+  };
+
+  // Reaction Time Functions
+  const startReactionTest = () => {
+    setCurrentGame('reaction-time');
+    setReactionState('waiting');
+    setReactionTime(0);
+    setReactionAttempts(0);
+  };
+
+  const beginReactionTest = () => {
+    setReactionState('ready');
+    const delay = Math.random() * 3000 + 2000; // 2-5 seconds
+    
+    setTimeout(() => {
+      if (reactionState === 'ready') {
+        setReactionState('go');
+        setReactionStartTime(Date.now());
+      }
+    }, delay);
+  };
+
+  const handleReactionClick = () => {
+    const now = Date.now();
+    
+    if (reactionState === 'ready') {
+      setReactionState('too-early');
+      setTimeout(() => setReactionState('waiting'), 2000);
+    } else if (reactionState === 'go') {
+      const time = now - reactionStartTime;
+      setReactionTime(time);
+      setReactionState('clicked');
+      setReactionAttempts(prev => prev + 1);
+      
+      if (bestReactionTime === 0 || time < bestReactionTime) {
+        setBestReactionTime(time);
+      }
+      
+      setTimeout(() => setReactionState('waiting'), 3000);
+    }
+  };
+
   const renderMathRush = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -235,6 +327,124 @@ export default function Games() {
     </div>
   );
 
+  const renderWordScramble = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <Badge variant="outline">Score: {wordScore}</Badge>
+          <Badge variant="default">Words: {wordsCompleted}</Badge>
+        </div>
+        <Button onClick={() => setCurrentGame(null)} variant="outline" size="sm">
+          <RotateCcw className="w-4 h-4 mr-2" />
+          Back to Games
+        </Button>
+      </div>
+
+      <Card className="text-center p-8">
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-4">Unscramble this word:</h3>
+          <div className="text-4xl font-bold mb-6 tracking-wider text-primary">
+            {scrambledWord}
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-center gap-4">
+          <input
+            type="text"
+            value={userGuess}
+            onChange={(e) => setUserGuess(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && checkWordGuess()}
+            className="p-3 text-center text-xl border rounded-lg uppercase"
+            placeholder="YOUR ANSWER"
+            autoFocus
+          />
+          <Button onClick={checkWordGuess} disabled={!userGuess}>
+            Submit
+          </Button>
+        </div>
+        
+        <div className="mt-4">
+          <Button onClick={generateWordPuzzle} variant="outline" size="sm">
+            Skip Word
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+
+  const renderReactionTime = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <Badge variant="outline">Attempts: {reactionAttempts}</Badge>
+          {bestReactionTime > 0 && (
+            <Badge variant="default">Best: {bestReactionTime}ms</Badge>
+          )}
+        </div>
+        <Button onClick={() => setCurrentGame(null)} variant="outline" size="sm">
+          <RotateCcw className="w-4 h-4 mr-2" />
+          Back to Games
+        </Button>
+      </div>
+
+      <Card className="text-center p-12">
+        {reactionState === 'waiting' && (
+          <div>
+            <h3 className="text-2xl font-bold mb-4">Reaction Time Test</h3>
+            <p className="text-muted-foreground mb-6">
+              Click the button below when it turns green. Don't click too early!
+            </p>
+            <Button onClick={beginReactionTest} size="lg">
+              Start Test
+            </Button>
+          </div>
+        )}
+
+        {reactionState === 'ready' && (
+          <div
+            className="w-48 h-48 mx-auto bg-red-500 rounded-full flex items-center justify-center cursor-pointer transition-all"
+            onClick={handleReactionClick}
+          >
+            <span className="text-white font-bold text-xl">WAIT...</span>
+          </div>
+        )}
+
+        {reactionState === 'go' && (
+          <div
+            className="w-48 h-48 mx-auto bg-green-500 rounded-full flex items-center justify-center cursor-pointer transition-all animate-pulse"
+            onClick={handleReactionClick}
+          >
+            <span className="text-white font-bold text-xl">CLICK NOW!</span>
+          </div>
+        )}
+
+        {reactionState === 'clicked' && (
+          <div>
+            <Trophy className="w-16 h-16 mx-auto mb-4 text-yellow-500" />
+            <div className="text-3xl font-bold mb-2">{reactionTime}ms</div>
+            <p className="text-muted-foreground mb-6">
+              {reactionTime < 200 ? 'Lightning fast!' : 
+               reactionTime < 300 ? 'Great reflexes!' : 
+               reactionTime < 400 ? 'Good timing!' : 'Keep practicing!'}
+            </p>
+            <Button onClick={() => setReactionState('waiting')}>
+              Test Again
+            </Button>
+          </div>
+        )}
+
+        {reactionState === 'too-early' && (
+          <div>
+            <div className="text-2xl font-bold mb-4 text-red-500">Too Early!</div>
+            <p className="text-muted-foreground mb-6">
+              Wait for the circle to turn green before clicking.
+            </p>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+
   if (currentGame === 'math-rush') {
     return (
       <div className="min-h-screen bg-background text-foreground">
@@ -260,6 +470,36 @@ export default function Games() {
             Memory Match
           </h1>
           {renderMemoryGame()}
+        </main>
+      </div>
+    );
+  }
+
+  if (currentGame === 'word-scramble') {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <Navigation />
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
+            <Shuffle className="text-purple-500" />
+            Word Scramble
+          </h1>
+          {renderWordScramble()}
+        </main>
+      </div>
+    );
+  }
+
+  if (currentGame === 'reaction-time') {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <Navigation />
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
+            <Zap className="text-yellow-500" />
+            Reaction Time
+          </h1>
+          {renderReactionTime()}
         </main>
       </div>
     );
@@ -304,6 +544,10 @@ export default function Games() {
                         startMathRush();
                       } else if (game.id === 'memory-match') {
                         initializeMemoryGame();
+                      } else if (game.id === 'word-scramble') {
+                        startWordScramble();
+                      } else if (game.id === 'reaction-time') {
+                        startReactionTest();
                       } else {
                         setCurrentGame(game.id);
                       }

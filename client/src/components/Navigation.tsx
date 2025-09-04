@@ -1,9 +1,10 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Link, useLocation } from 'wouter';
-import { Moon, Sun, Bell, Brain } from 'lucide-react';
+import { Moon, Sun, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { NotificationSystem } from '@/components/NotificationSystem';
 
 export function Navigation() {
   const { user } = useAuth();
@@ -65,15 +66,7 @@ export function Navigation() {
               )}
             </Button>
             
-            <Button
-              variant="ghost"
-              size="icon"
-              data-testid="notifications-button"
-              className="relative"
-            >
-              <Bell className="text-muted-foreground" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full animate-pulse"></span>
-            </Button>
+            <NotificationSystem />
             
             {user && (
               <Link to="/profile">
